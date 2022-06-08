@@ -1,0 +1,3 @@
+[submodule "lib/critcl"]
+	path = lib/critcl
+	url = https://github.com/andreas-kupries/critcl.git
