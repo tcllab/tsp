@@ -160,7 +160,10 @@ proc ::tsp::logCompilable {compUnitDict compilable} {
 # optional filehandle, defaults to stderr
 # optional proc name pattern, defaults to * 
 #
-proc ::tsp::printLog {{fd stderr} {patt *}} {
+proc ::tsp::printLog {{fd stdout} {patt *}} {
+    if {$fd != "stdout"} {
+        puts [::tsp::log $patt]
+    }
     puts $fd [::tsp::log $patt]
 }
 

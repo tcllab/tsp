@@ -53,11 +53,10 @@ proc ::tsp::gen_check_target_var {compUnitDict targetVarName targetType sourceTy
 #
 # NOTE that anywhere a tcl var is used, it is prefixed with "__" for native compilation, except
 #      for "array" variables, which are only accessed in the interp.  This is done anytime we
-#      call a lang specific proc (::tsp::lang_*], or generate lang indepedent code.
+#      call a lang specific proc [::tsp::lang_*], or generate lang indepedent code.
 #
 proc ::tsp::gen_command_set {compUnitDict tree} {
     upvar $compUnitDict compUnit
-    
     set errors 0
     set body [dict get $compUnit body]
   
@@ -84,7 +83,6 @@ proc ::tsp::gen_command_set {compUnitDict tree} {
         set errors 1
         ::tsp::addError compUnit "set arg 2 invalid: \"$sourceStr\""
     }
-
 
     if {$errors} {
         return [list void "" ""]
@@ -178,7 +176,6 @@ proc ::tsp::produce_set {compUnitDict tree targetComponents sourceComponents} {
     set sourceArrayIdxtext ""
     set sourceArrayIdxvar ""
     set sourceCode ""
-
     # is source an interpolated string?
     if {[llength $sourceComponents] > 1} {
         if {$targetType eq "array"} {
@@ -499,7 +496,7 @@ proc ::tsp::gen_assign_scalar_text {compUnitDict targetVarName targetType source
          double {
              switch $sourceType {
                  int {
-                     append result "$targetPre$targetVarName = (::tsp::lang_type_double) [::tsp::lang_int_const $sourceText];\n"
+                     append result "$targetPre$targetVarName = ([::tsp::lang_type_double]) [::tsp::lang_int_const $sourceText];\n"
                      return $result
                  }
                  double {

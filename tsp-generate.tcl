@@ -70,6 +70,7 @@ proc ::tsp::addArgsPerLevel {compUnitDict level argc} {
 #
 proc ::tsp::getConstant {compUnitDict value} {
     upvar $compUnitDict compUnit
+    
     if {[dict exists $compUnit constVar $value]} {
         return [dict get $compUnit constVar $value]
     } else {
@@ -173,7 +174,9 @@ proc ::tsp::gen_command {compUnitDict tree} {
         #   a call to a previously tsp compiled proc, bypass interp
         #   a call to a known tcl core command, bypass interp
         #   a call to tcl interp
-
+        if {($tsp::PACKAGE_NAMESPACE ne "")&&([string trim [namespace qualifiers $word] : ] eq $::tsp::PACKAGE_NAMESPACE)} {
+            set word [namespace tail $word]
+        }
         if {$type eq "text" && [info procs ::tsp::gen_command_$word] eq "::tsp::gen_command_$word"} {
             # command is compilable (set, if, while, string, lindex, etc.)
             return [::tsp::gen_command_$word compUnit $tree]
@@ -277,6 +280,9 @@ proc ::tsp::gen_direct_tsp_compiled {compUnitDict tree} {
     set result ""
     set cmdComponent [lindex [::tsp::parse_word compUnit [lindex $tree 0]] 0]
     set cmdName [lindex $cmdComponent 1]
+    if {($tsp::PACKAGE_NAMESPACE ne "")&&([string trim [namespace qualifiers $cmdName] : ] eq $::tsp::PACKAGE_NAMESPACE)} {
+        set cmdName [namespace tail $cmdName]
+    }
 
     if {$cmdName eq [dict get $compUnit name]} { 
         set proc_info  [list [dict get $compUnit returns] [dict get $compUnit argTypes] {} ]
@@ -311,7 +317,7 @@ proc ::tsp::gen_direct_tsp_compiled {compUnitDict tree} {
 
     return [list $procType $returnVar $result]
 }
-
+ 
 
 #########################################################
 # generate a tcl invocation
@@ -701,6 +707,7 @@ proc ::tsp::check_varname_args {compUnitDict tree} {
                         }
                         foreach node [lrange $tree $start $end] {
                             set varname [::tsp::nodeText compUnit $node]
+                            
                             if {$varname ne "" && [::tsp::getVarType compUnit $varname] eq "undefined"} {
                                 ::tsp::addWarning compUnit "\"$varname\" implicitly defined as type \"$vartype\" by command \"$cmd\""
                                 ::tsp::setVarType compUnit $varname $vartype
@@ -729,6 +736,7 @@ proc ::tsp::check_varname_args {compUnitDict tree} {
                             }
                             foreach node [lrange $tree $start $end] {
                                 set varname [::tsp::nodeText compUnit $node]
+
                                 if {$varname ne "" && [::tsp::getVarType compUnit $varname] eq "undefined"} {
                                     ::tsp::addWarning compUnit "\"$varname\" implicitly defined as type \"$vartype\" by command \"$cmd\""
                                     ::tsp::setVarType compUnit $varname $vartype

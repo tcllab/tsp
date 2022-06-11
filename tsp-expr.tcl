@@ -86,6 +86,10 @@ namespace eval ::tsp {
         variable tclfunc_tan             TSP_func_tan
         variable tclfunc_tanh            TSP_func_tanh
 
+        variable tclfunc_max             TSP_func_max
+        variable tclfunc_min             TSP_func_min
+        
+        
         variable VALUE_TRUE              1
         variable VALUE_FALSE             0
 
@@ -111,12 +115,12 @@ namespace eval ::tsp {
 
     variable FUNC_0ARGS [list rand ]
     variable FUNC_1ARG  [list abs acos asin atan ceil cos cosh double exp floor int log log10 round sin sinh sqrt srand tan tanh wide ]
-    variable FUNC_2ARGS [list atan2 fmod hypot pow ] 
+    variable FUNC_2ARGS [list atan2 fmod hypot pow max min] 
 
     variable ALL_FUNCS [concat $FUNC_0ARGS $FUNC_1ARG $FUNC_2ARGS]
 
     variable FUNC_INT_RESULT     [list int round wide ]
-    variable FUNC_DOUBLE_RESULT  [list acos asin atan atan2 ceil cos cosh double exp floor fmod hypot log log10 pow rand sin sinh sqrt srand tan tanh ]
+    variable FUNC_DOUBLE_RESULT  [list acos asin atan atan2 ceil cos cosh double exp floor fmod hypot log log10 pow rand sin sinh sqrt srand tan tanh max min]
     variable FUNC_SAME_RESULT    [list abs ]
 
     # note: special handling for abs(int) vs abs(double)
@@ -131,7 +135,7 @@ namespace eval ::tsp {
         		  exp $tclfunc_exp       floor $tclfunc_floor  fmod $tclfunc_fmod  hypot $tclfunc_hypot \
         		  log $tclfunc_log       log10 $tclfunc_log10  rand $tclfunc_rand  round $tclfunc_round \
 		          sin $tclfunc_sin        sinh $tclfunc_sinh   sqrt $tclfunc_sqrt    tan $tclfunc_tan   \
-			 tanh $tclfunc_tanh  ] 
+		          tanh $tclfunc_tanh      max $tclfunc_max     min $tclfunc_min    ] 
 
 }
 
@@ -264,10 +268,12 @@ proc ::tsp::produce_binary_op {compUnitDict op expr tree} {
             # turn string comparison into function call
             set func $::tsp::OP_STRING_XLATE($op)
             if {$firstType eq "stringliteral"} {
-                set firstOperand \"${firstOperand}\"
+                set strVar [::tsp::get_tmpvar compUnit string]
+                set firstOperand [::tsp::lang_get_string_char $firstOperand $strVar]
             }
             if {$secondType eq "stringliteral"} {
-                set secondOperand \"${secondOperand}\"
+                set strVar [::tsp::get_tmpvar compUnit string]
+                set secondOperand [::tsp::lang_get_string_char $secondOperand $strVar]
             }
             return [list boolean "${func}($firstOperand, $secondOperand)"]
         } else {

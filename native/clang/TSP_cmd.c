@@ -223,6 +223,7 @@ TSP_Cmd_builtin_clock (ClientData dummy, Tcl_Interp* interp, int objc, struct Tc
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
     static ClientData clientData = NULL;
+    static int result;
     if (cmdProc == NULL) {
         Tcl_CmdInfo* cmdInfo;
         cmdInfo = TSP_Cmd_getCmdInfo(interp, "::clock");
@@ -233,7 +234,10 @@ TSP_Cmd_builtin_clock (ClientData dummy, Tcl_Interp* interp, int objc, struct Tc
         Tcl_IncrRefCount(cmdName);  /* from altercation  */
     }
     objv[0] = cmdName;
-    return (cmdProc)(clientData, interp, objc, objv);
+    // somehow we have to reset the proc, or this risks to crash
+    result= (cmdProc)(clientData, interp, objc, objv);
+    cmdProc = NULL;
+    return result;
 }
 
 int

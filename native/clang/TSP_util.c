@@ -214,8 +214,8 @@ TSP_Util_lang_assign_var_var(Tcl_Obj* targetVarName, Tcl_Obj* sourceVarName) {
         Tcl_DecrRefCount(targetVarName);
     }
 
-    /* targetVarName = Tcl_DuplicateObj(sourceVarName);  */
-    targetVarName = sourceVarName;
+     targetVarName = Tcl_DuplicateObj(sourceVarName);  
+    //targetVarName = sourceVarName;
 
     Tcl_IncrRefCount(targetVarName);
     return targetVarName;
@@ -233,17 +233,6 @@ TSP_Util_lang_assign_array_var(Tcl_Interp* interp, Tcl_Obj* targetArrayVar, Tcl_
     } else {
         return TCL_OK;
     }
-}
-
-
-/*********************************************************************************************/
-/* compare two Tcl_DStrings */
-int
-TSP_Util_string_compare(Tcl_DString* s1, Tcl_DString* s2) {
-    char* string2;
-    int length2;
-
-    return TSP_Util_string_compare_const(s1, Tcl_DStringValue(s2), Tcl_DStringLength(s2));
 }
 
 /*********************************************************************************************/
@@ -268,6 +257,26 @@ TSP_Util_string_compare_const(Tcl_DString* s1, char* string2, int length2) {
     }
     return match;
 }
+
+
+/*********************************************************************************************/
+/* compare two Tcl_DStrings */
+int
+TSP_Util_string_compare(Tcl_DString* s1, Tcl_DString* s2) {
+    char* string2;
+    int length2;
+
+    return TSP_Util_string_compare_const(s1, Tcl_DStringValue(s2), Tcl_DStringLength(s2));
+}
+
+
+/* create Dstring from Char in tmpVar */ 
+Tcl_DString* TSP_UTIL_dstring_from_char (char* str, Tcl_DString* tmpvar) {
+    Tcl_DStringSetLength(tmpvar, 0);
+    Tcl_DStringAppend(tmpvar, str, -1);
+    return tmpvar;
+}
+
 
 
 /*********************************************************************************************/

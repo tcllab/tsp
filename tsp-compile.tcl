@@ -33,7 +33,6 @@
 # compileType - normal = compile if able, none = don't compile, assert = Tcl error if not compilable, trace = enable Tcl tracing
 # compiledReference - the Java class name or C function 
 
-
 proc ::tsp::init_compunit {file name procargs body} {
    return [dict create \
         file $file \
@@ -72,11 +71,13 @@ proc ::tsp::init_compunit {file name procargs body} {
 # compile a proc 
 
 proc ::tsp::compile_proc {file name procargs body} {
-
     set compUnit [::tsp::init_compunit $file $name $procargs $body]
-
+    set ::tsp::tempspillvars {}
+    
     set procValid [::tsp::validProcName $name]
+    
     if {$procValid ne ""} {
+        puts "procValid Error in compUnit"
         ::tsp::addError compUnit $procValid
         ::tsp::logErrorsWarnings compUnit
         uplevel #0 [list ::proc $name $procargs $body]
@@ -85,19 +86,41 @@ proc ::tsp::compile_proc {file name procargs body} {
 
     set code ""
     set errInf ""
-
- 
     set rc [ catch {set compileResult [::tsp::parse_body compUnit {0 end}] } errInf] 
+    if {$rc != 0} {
+        error "tsp internal error: parse_body error: $errInf"
+    }
 
+    set returnType [dict get $compUnit returns]
+    
+    set compUnit [::tsp::init_compunit $file $name $procargs $body]
+    
+    if {$returnType eq ""} {
+        # try setting it to void
+        set pargs ""
+        foreach parg $procargs {
+            lappend pargs var
+        }
+        set compUnit [::tsp::init_compunit $file $name $procargs $body]
+        set procdef_pargs "tsp::procdef void -args [join $pargs { }]"
+        ::tsp::addWarning compUnit "Missing procdef definition, replacing with tsp::procdef void -args $pargs"
+        ::tsp::parse_procDefs compUnit "tsp::procdef void -args [join $pargs { }]"
+    }
+    
+    # reparse
+    set rc [ catch {set compileResult [::tsp::parse_body compUnit {0 end}] } errInf] 
     if {$rc != 0} {
         error "tsp internal error: parse_body error: $errInf"
     }
     
     lassign $compileResult bodyType bodyRhs code
-
+    
+    set ::tsp::lastcompunit $compUnit
+    
     set errors [::tsp::getErrors compUnit]
     set numErrors [llength $errors]
     set returnType [dict get $compUnit returns]
+    
     set compileType [dict get $compUnit compileType]
 
     if {$compileType eq "none"} {
@@ -120,7 +143,6 @@ proc ::tsp::compile_proc {file name procargs body} {
         return
     }
 
-    
     if {$numErrors > 0 } {
         if {$compileType eq "assert" || $compileType eq "trace"} {
             error "compile type: $compileType, proc $name, but resulted in errors:\n[join $errors \n]"
@@ -140,8 +162,9 @@ proc ::tsp::compile_proc {file name procargs body} {
             ::tsp::logErrorsWarnings compUnit
         } else {
             # parse_body ok, let's see if we can compile it
+            puts "Generating C-Code\n"
             set compilable [::tsp::lang_create_compilable compUnit $code]
-            ::tsp::logCompilable compUnit $compilable
+            ::tsp::logCompilable compUnit [join $compilable ""]
             set rc [::tsp::lang_compile compUnit $compilable]
             if {$rc == 0} {
                 ::tsp::lang_interp_define compUnit
@@ -157,7 +180,6 @@ proc ::tsp::compile_proc {file name procargs body} {
    
 }
 
-
 #########################################################
 # check if name is a legal identifier for compilation
 # return "" if valid, other return error condition
@@ -167,14 +189,14 @@ proc ::tsp::validProcName {name} {
         return "invalid proc name: \"$name\" is not a valid identifier"
     }
     if {[lsearch [::tsp::getCompiledProcs] $name] >= 0} {
-        return "invalid proc name: \"$name\" has been previously defined and compiled"
+        puts "warning: proc name: \"$name\" has been previously defined and compiled"
+        return ""
     }
     if {[lsearch ::tsp::BUILTIN_TCL_COMMANDS $name] >= 0} {
         return "invalid proc name: \"$name\" is builtin Tcl command"
     }
     return ""
 }
-
 
 
 #########################################################
@@ -185,6 +207,12 @@ proc ::tsp::proc {name argList body} {
     set scriptfile [info script]
     if {$scriptfile eq ""} {
         set scriptfile _
+    }
+    if {[string trim [namespace qualifiers $name] : ] eq $::tsp::PACKAGE_NAMESPACE} {
+        set name [namespace tail $name]
+    }
+    if {$::tsp::COMPILE_PACKAGE>0} {
+        dict set ::tsp::PACKAGE_PROCS $name [list $name $argList $body]
     }
     ::tsp::compile_proc $scriptfile $name $argList $body
     return ""

@@ -148,6 +148,11 @@ proc ::tsp::parse_pragma {compUnitDict comments} {
                 }
             }
             
+            "tsp::inlinec*" {
+                set inlinec [string map {"tsp::inlinec " ""} $prag]
+                dict lappend compUnit "immediateCode" "/* $prag */" $inlinec
+            }
+            
         }
 
         dict incr compUnit lineNum 
@@ -161,7 +166,6 @@ proc ::tsp::parse_pragma {compUnitDict comments} {
 
 proc ::tsp::parse_procDefs {compUnitDict def} {
     upvar $compUnitDict compUnit
-
     if {[dict get $compUnit returns] ne ""} {
         ::tsp::addError compUnit "::tsp::procdef: attempt to redefine proc: $def"
         return
@@ -240,7 +244,7 @@ proc ::tsp::parse_procDefs {compUnitDict def} {
                         ::tsp::addError compUnit "::tsp::procdef: var already defined: arg \"$arg\" as type \"$previous\""
                     }
                 } else {
-		    ::tsp::setVarType compUnit $arg $type
+                    ::tsp::setVarType compUnit $arg $type
                     lappend argTypesList $type
                 }
             }
@@ -298,7 +302,6 @@ proc ::tsp::parse_varDefs {compUnitDict def} {
 
 proc ::tsp::parse_volatileDefs {compUnitDict def} {
     upvar $compUnitDict compUnit
-
     set vars [lrange $def 1 end]
     foreach var $vars {
         set isValid [::tsp::isValidIdent $var]
@@ -364,8 +367,16 @@ proc ::tsp::isProcArg {compUnitDict var} {
 # 
 proc ::tsp::isValidIdent {id} {
     #tsp::proc returns: bool args: string id 
-    
-    return [regexp {^[a-zA-Z_][a-zA-Z0-9_]*$} $id]
+    set ns [string trim [namespace qualifiers $id] ":"]
+    set vn [namespace tail $id]
+    set r [regexp {^[a-zA-Z_][a-zA-Z0-9_]*$} $vn]
+    if {$ns eq $::tsp::PACKAGE_NAMESPACE} {
+        return $r
+    }
+    if {$ns eq ""} {
+        return $r
+    }
+    return 0
 }
 
 
@@ -550,6 +561,9 @@ proc ::tsp::is_prefixedvar {name} {
 # user variables
 
 proc ::tsp::var_prefix {name} {
+    if {[lsearch $tsp::LOCKED_WINVARS $name]>-1} {
+        return ___
+    }
     if {[::tsp::is_tmpvar $name] || [::tsp::is_prefixedvar $name]} {
         return ""
     } else {

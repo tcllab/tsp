@@ -5,6 +5,7 @@
 #ifndef _MATH_H
 #include <math.h>
 #endif
+#include <stdlib.h>
 
 #ifndef _LIBC_LIMITS_H_
 #include <limits.h>
@@ -136,6 +137,7 @@ int
 TSP_func_str_ne(Tcl_DString* s1, Tcl_DString* s2) {
     return (TSP_func_util_strcmp(s1, s2) != 0) ? TRUE : FALSE;
 }
+
 
 Tcl_WideInt
 TSP_func_int_abs(Tcl_WideInt i) {
@@ -318,8 +320,45 @@ _TSP_func_log10(int* rc, char** exprErrMsg, double x) {
     }
     return z;
 }
+#ifndef max
+#define max(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a > _b ? _a : _b; })
+#endif
+#define TSP_func_max(a,b)  _TSP_func_max(rc, &exprErrMsg, (a), (b))
+double
+_TSP_func_max(int* rc, char** exprErrMsg, double x, double y) {
+    double z;
+    CHECK_NAN(x);
+    CHECK_NAN(y);
+    z = max(x,y);
+    if (isnan(z)) {
+        RAISE_ERROR(TSP_DOMAIN_ERROR " max()");
+    }
+    return z;
+}
+#ifndef min
+#define min(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a <= _b ? _a : _b; })
+#endif
+#define TSP_func_min(a,b)  _TSP_func_min(rc, &exprErrMsg, (a), (b))
+double
+_TSP_func_min(int* rc, char** exprErrMsg, double x, double y) {
+    double z;
+    CHECK_NAN(x);
+    CHECK_NAN(y);
+    z = min(x,y);
+    if (isnan(z)) {
+        RAISE_ERROR(TSP_DOMAIN_ERROR " min()");
+    }
+    return z;
+}
 
-#define TSP_func_pow(a,b) _TSP_func_pow(rc, &exprErrMsg, (a), (b))
+#define TSP_func_pow(a,b) _TSP_func_double_pow(rc, &exprErrMsg, (a), (b))
+#define TSP_func_double_pow(a,b) _TSP_func_double_pow(rc, &exprErrMsg, (a), (b))
 double
 _TSP_func_double_pow(int* rc, char** exprErrMsg, double x, double y) {
     double z;
@@ -332,7 +371,7 @@ _TSP_func_double_pow(int* rc, char** exprErrMsg, double x, double y) {
     return z;
 }
 
-#define TSP_func_int_pow(a,b) _TSP_func_int_pow(rc, &exprErrMsg, (a), (b))
+#define TSP_func_int_pow(a,b) _TSP_func_double_int_pow(rc, &exprErrMsg, (a), (b))
 double
 _TSP_func_double_int_pow(int* rc, char** exprErrMsg, double x, Tcl_WideInt y) {
     double z;
@@ -347,7 +386,7 @@ _TSP_func_double_int_pow(int* rc, char** exprErrMsg, double x, Tcl_WideInt y) {
 
 double
 TSP_func_rand() {
-    return drand48(); 
+    return rand(); 
 }
 
 double
@@ -393,8 +432,8 @@ _TSP_func_sqrt(int* rc, char** exprErrMsg, double x) {
 
 double
 TSP_func_int_srand(Tcl_WideInt i) {
-    srand48((long) i);
-    return drand48();
+    srand((long) i);
+    return rand();
 }
 
 #define TSP_func_tan(a) _TSP_func_tan(rc, &exprErrMsg, (a))

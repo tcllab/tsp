@@ -14,7 +14,6 @@ proc ::tsp::parse_body {compUnitDict range} {
     set cmdRhsVar ""
     set cmdCode ""
    
-
     lassign $range firstIdx lastIdx
     if {$lastIdx eq "end"} {
         set lastIdx [string length $body]
@@ -51,7 +50,6 @@ proc ::tsp::parse_body {compUnitDict range} {
             # added below for loading after the command is executed
         }
         
-        
         # process comments for tsp pragmas
         lassign $commentRange commentFirst commentLast
         if {$commentLast > 0} {
@@ -62,6 +60,12 @@ proc ::tsp::parse_body {compUnitDict range} {
 
             set comment [parse getstring $body $commentRange]
             ::tsp::parse_pragma compUnit $comment
+            if {[dict exists $compUnit "immediateCode"]&&([set imcode [dict get $compUnit "immediateCode"]] ne "")} {
+                set imcode [join $imcode \n]
+                append gencode $imcode
+                dict unset compUnit "immediateCode"
+            }
+                
         }
         
         # process the command
@@ -127,7 +131,7 @@ proc ::tsp::parse_body {compUnitDict range} {
 
         # continue parsing
         set range $restRange
-	lassign $range firstIdx lastIdx
+        lassign $range firstIdx lastIdx
     }
 
     # if any errors, return null string, else return the generated code
@@ -199,6 +203,7 @@ proc ::tsp::parse_word {compUnitDict subtree {check_array 1}} {
     if {$type eq "simple"} {
         set textIdx [lindex [lindex $subtree 0] 1]
         set unquotedStr [parse getstring $body $textIdx]
+    
         if {$check_array} {
             return [::tsp::isArrayText [list [list text $wordStr $unquotedStr]] $unquotedStr]
         } else {
@@ -210,6 +215,7 @@ proc ::tsp::parse_word {compUnitDict subtree {check_array 1}} {
         incr endIdx -2
         set range [list $startIdx $endIdx]
         return [list command [::tsp::trimCommand $wordStr] $range]
+        
     } elseif {$type ne "word"} {
         return [list invalid "unknown node $type"]
     }
@@ -247,7 +253,6 @@ proc ::tsp::parse_word {compUnitDict subtree {check_array 1}} {
         return $result
     }
 }
-
 
 #########################################################
 # trim [ and ] from a command string

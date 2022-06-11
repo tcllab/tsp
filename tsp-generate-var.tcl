@@ -10,7 +10,7 @@
 #
 proc ::tsp::gen_command_unset {compUnitDict tree} {
     upvar $compUnitDict compUnit
-    ::tsp::addError compUnit "unset command currently not supported"
+    ::tsp::addError compUnit "unset command currently not supported use ::unset"
     return [list void "" ""]
 }
 
@@ -186,7 +186,6 @@ proc ::tsp::gen_command_variable {compUnitDict tree} {
     append code [lindex $directResult 2]
     
     set upvared [list]
-
     # check that local variables are defined, if not define them as var
     # generate code to get vars from interp after the real variable command code
 
@@ -196,6 +195,7 @@ proc ::tsp::gen_command_variable {compUnitDict tree} {
             ::tsp::addError compUnit "variable local \"$rawLocal\" not a text var name"
             return [list void "" ""]
         }
+        
         set type [::tsp::getVarType compUnit $localVar]
         if {$type eq "undefined"} {
             if {[::tsp::isProcArg compUnit $localVar]} {
@@ -215,7 +215,7 @@ proc ::tsp::gen_command_variable {compUnitDict tree} {
 
     if {[llength $upvared] > 0} {
         append code "\n/**** load variable: $upvared */\n"
-        append code [::tsp::lang_load_vars compUnit $upvared 1]
+        append code [::tsp::lang_load_vars compUnit $upvared 1 $::tsp::PACKAGE_NAMESPACE]
     }
 
     # add upvared variables to the finalSpill
@@ -223,6 +223,7 @@ proc ::tsp::gen_command_variable {compUnitDict tree} {
     foreach var $upvared {
         if {[lsearch $existing $var] == -1} {
             dict lappend compUnit finalSpill $var
+            lappend ::tsp::NAMESPACE_VARS $var
         }
     }
 
