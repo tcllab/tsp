@@ -120,7 +120,12 @@ proc ::tsp::finalize_package {{packagedir ""} {compiler none}} {
         set compiler "intern"
     }
     if {$compiler ni "intern memory"} {
-        set ::tsp::COMPILE_DIRECTIVES [::tcc4tcl::write_packagecode $::tsp::TCC_HANDLE $::tsp::PACKAGE_NAME $tsp::PACKAGE_DIR $::tsp::PACKAGE_VERSION $::tsp::TCL_VERSION]
+        if {[info commands "::tcc4tcl::write_packagecode"] ne "::tcc4tcl::write_packagecode"} {
+            set ::tsp::COMPILE_DIRECTIVES ""
+            puts "failed crafting compiledirectives... use package require tcc4tcc-helper"
+        } else {
+            set ::tsp::COMPILE_DIRECTIVES [::tcc4tcl::write_packagecode $::tsp::TCC_HANDLE $::tsp::PACKAGE_NAME $tsp::PACKAGE_DIR $::tsp::PACKAGE_VERSION $::tsp::TCL_VERSION]
+        }
     }
     # list with four commandlines, tcc_compile, gcc_compile, cross_compile, lin64_compile
     

@@ -173,7 +173,11 @@ proc ::tsp::parse_procDefs {compUnitDict def} {
     
     set validReturnTypes $::tsp::RETURN_TYPES
     set validArgTypes $::tsp::VAR_TYPES
-
+    
+    # patch for native proc withou pushcallframe/popcallframe
+    dict set compUnit isNative 1
+    set unsupportedTypes "array"
+    
     set len [llength $def]
     if {$len < 2} {
         ::tsp::addError compUnit "::tsp::procdef: invalid proc definition, missing return type"
@@ -188,6 +192,13 @@ proc ::tsp::parse_procDefs {compUnitDict def} {
         ::tsp::addError compUnit "::tsp::procdef: invalid return type: $type"
         return
     }
+    set unsupported [lsearch $unsupportedTypes $type]
+    if {$unsupported>-1} {
+        ::tsp::addWarning compUnit "::tsp::procdef: not a native type $type"
+        dict set compUnit isNative 0
+        return
+    }
+    
     dict set compUnit returns $type
     set argTypesList [list]
     set procArgs [dict get $compUnit args]
@@ -233,6 +244,12 @@ proc ::tsp::parse_procDefs {compUnitDict def} {
                 ::tsp::addError compUnit "::tsp::procdef: proc arg is not valid identifier: $arg"
             }
             set type [lindex $defArgs $i]
+            set unsupported [lsearch $unsupportedTypes $type]
+            if {$unsupported>-1} {
+                ::tsp::addWarning compUnit "::tsp::procdef: not a native type $type"
+                dict set compUnit isNative 0
+                return
+            }
             set found [lsearch $validArgTypes $type]
             if {$found < 0} {
                 ::tsp::addError compUnit "::tsp::procdef: invalid proc definition: arg $arg type \"$type\" is invalid"
@@ -273,6 +290,12 @@ proc ::tsp::parse_varDefs {compUnitDict def} {
     set found [lsearch $types $type]
     if {$found < 0} {
         ::tsp::addError compUnit "::tsp::def: invalid var type: \"$type\""
+        return
+    }
+    set unsupported [lsearch "array" $type]
+    if {$unsupported>-1} {
+        ::tsp::addWarning compUnit "::tsp::procdef: not a native type $type"
+        dict set compUnit isNative 0
         return
     }
 

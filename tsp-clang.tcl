@@ -353,7 +353,7 @@ proc ::tsp::lang_convert_double_var {targetVarName sourceVarName errMsg} {
 proc ::tsp::lang_convert_string_boolean {targetVarName sourceVarName {errMsg ""}} {
     append result "/* ::tsp::lang_convert_string_boolean */\n"
     append result "Tcl_DStringSetLength($targetVarName,0);\n"
-    append result "Tcl_DStringAppend($targetVarName, ($sourceVarName ? : \"1\" : \"0\"), -1);\n"
+    append result "Tcl_DStringAppend($targetVarName, ($sourceVarName ? \"1\" : \"0\"), -1);\n"
     return $result
 }
 
@@ -415,7 +415,7 @@ proc ::tsp::lang_convert_var_var {targetVarName sourceVarName {errMsg ""}} {
 # NOTE - return value must be used immediately
 #
 proc ::tsp::lang_get_string_boolean {sourceVarName} {
-    return "$sourceVarName ? : \"1\" : \"0\""
+    return "$sourceVarName ? \"1\" : \"0\""
 }
 
 ##############################################
@@ -1109,6 +1109,7 @@ proc ::tsp::lang_create_compilable {compUnitDict code} {
         append argObjvArrays "Tcl_Obj** foreachObjv_0 = NULL;\n"
     }
 
+    
     set cleanup_defs ""
     append cleanup_defs "#define CLEANUP "  \ \n
     append cleanup_defs [::tsp::indent compUnit [::tsp::lang_spill_vars compUnit [dict get $compUnit finalSpill]] 1 \n]
@@ -1127,8 +1128,27 @@ proc ::tsp::lang_create_compilable {compUnitDict code} {
     regsub "^\[ \n\]*" $cleanup_defs {} cleanup_defs
     regsub -all {\n *$} $cleanup_defs "\n" cleanup_defs
     regsub -all {\n} $cleanup_defs "\\\n" cleanup_defs
-    append cleanup_defs "    Tcl_PopCallFrame(interp); \\\n" 
-    append cleanup_defs "    ckfree((char*) frame) \n"
+    
+# patch for native compiled routines, that don't need pushcallframe/popcallframe
+set popcf ""
+set pushcf "/* Native proc, no external variables used, dropping PushCallframe/PopCallframe */"
+
+if {[dict get $compUnit isNative]==0} { 
+    set pushcf {
+    /* Tcl_CallFrame is dangerous since it is buried deep in the tcl_internals stubs table */
+    /* could easily break in future TCL_VERSION versions */
+    /* Made it functional against 8.6.6 with no guarantee */
+    frame = (Tcl_CallFrame*) ckalloc(sizeof(Tcl_CallFrame));
+    Tcl_PushCallFrame(interp, frame, Tcl_GetGlobalNamespace(interp), 1);
+    }
+    set popcf "    Tcl_PopCallFrame(interp); \\\n    ckfree((char*) frame) \n"
+    puts "$name is NOT a native proc"
+} else {
+    puts "$name is a native proc"
+}
+
+
+    append cleanup_defs $popcf
 
     regsub "^\[ \n\]*" $arg_cleanup_defs {} arg_cleanup_defs
     regsub -all {\n *$} $arg_cleanup_defs "\n" arg_cleanup_defs
@@ -1211,6 +1231,7 @@ if {$::tsp::PACKAGE_HEADER eq ""} {
     }
 }
 
+
 set cfileTemplate1 \
 {
 #undef CLEANUP
@@ -1274,12 +1295,7 @@ TSP_UserDirect_${name}(Tcl_Interp* interp, int* rc  $nativeTypedArgs ) {
         [::tsp::indent compUnit $procConstInit 2 \n]
     }
     
-    /* Tcl_CallFrame is dangerous since it is buried deep in the tcl_internals stubs table */
-    /* could easily break in future TCL_VERSION versions */
-    /* Made it functional against 8.6.6 with no guarantee */
-    
-    frame = (Tcl_CallFrame*) ckalloc(sizeof(Tcl_CallFrame));
-    Tcl_PushCallFrame(interp, frame, Tcl_GetGlobalNamespace(interp), 1);
+    $pushcf
 
     *rc = TCL_OK;     
 
@@ -1611,6 +1627,8 @@ proc ::tsp::lang_spill_vars {compUnitDict varList} {
 
     set buf "/* ::tsp::lang_spill_vars $varList */\n"
     ::tsp::addWarning compUnit "Spilling Vars |$varList| into global namespace" 
+    ::tsp::addWarning compUnit "::tsp::spill: Function not native"
+    dict set compUnit isNative 0
     
     foreach var $varList {
         set type [::tsp::getVarType compUnit $var]

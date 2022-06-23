@@ -547,6 +547,7 @@ proc ::tsp::gen_assign_scalar_scalar {compUnitDict targetVarName targetType sour
 
     upvar $compUnitDict compUnit
 
+    
     # set the target as dirty
     # puts "gen_assign_scalar_scalar- ::tsp::setDirty compUnit $targetVarName"
     ::tsp::setDirty compUnit $targetVarName 
