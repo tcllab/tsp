@@ -5,7 +5,7 @@
 
 /*********************************************************************************************/
 /* convert to an int from a string */
-int
+TSP_REMOVABLE int
 TSP_Util_lang_convert_int_string(Tcl_Interp* interp, Tcl_DString* sourceVarName, Tcl_WideInt* targetVarName) {
     int rc;
     Tcl_Obj* obj = Tcl_NewStringObj(Tcl_DStringValue(sourceVarName), Tcl_DStringLength(sourceVarName));
@@ -18,7 +18,7 @@ TSP_Util_lang_convert_int_string(Tcl_Interp* interp, Tcl_DString* sourceVarName,
 
 /*********************************************************************************************/
 /* convert to an int from a string const */
-int
+TSP_REMOVABLE int
 TSP_Util_lang_convert_int_string_const(Tcl_Interp* interp, char* sourceVarName, Tcl_WideInt* targetVarName) {
     int rc;
     Tcl_Obj* obj = Tcl_NewStringObj(sourceVarName, -1);
@@ -31,7 +31,7 @@ TSP_Util_lang_convert_int_string_const(Tcl_Interp* interp, char* sourceVarName, 
 
 /*********************************************************************************************/
 /* convert to a string from an int */
-Tcl_DString*
+TSP_REMOVABLE Tcl_DString*
 TSP_Util_lang_convert_string_int(Tcl_Interp* interp, Tcl_DString* targetVarName, Tcl_WideInt sourceVarName) {
     char str[500];
     char *format = "%" TCL_LL_MODIFIER "d";
@@ -50,7 +50,7 @@ TSP_Util_lang_convert_string_int(Tcl_Interp* interp, Tcl_DString* targetVarName,
 
 /*********************************************************************************************/
 /* convert to a string from a double */
-Tcl_DString*
+TSP_REMOVABLE Tcl_DString*
 TSP_Util_lang_convert_string_double(Tcl_Interp* interp, Tcl_DString* targetVarName, double sourceVarName) {
     char str[500];
     if (targetVarName != NULL) {
@@ -67,7 +67,7 @@ TSP_Util_lang_convert_string_double(Tcl_Interp* interp, Tcl_DString* targetVarNa
 
 /*********************************************************************************************/
 /* convert to a string from a var */
-Tcl_DString*
+TSP_REMOVABLE Tcl_DString*
 TSP_Util_lang_convert_string_var(Tcl_DString* targetVarName, Tcl_Obj* sourceVarName) {
     char* str;
     int len;
@@ -86,7 +86,7 @@ TSP_Util_lang_convert_string_var(Tcl_DString* targetVarName, Tcl_Obj* sourceVarN
 /*********************************************************************************************/
 /* get a string from an int */
 /* string must be used immediately */
-Tcl_DString*
+TSP_REMOVABLE Tcl_DString*
 TSP_Util_lang_get_string_int(Tcl_WideInt sourceVarName) {
     static int doInit = 1;
     static Tcl_DString ds;
@@ -106,7 +106,7 @@ TSP_Util_lang_get_string_int(Tcl_WideInt sourceVarName) {
 /*********************************************************************************************/
 /* get a string from an double */
 /* string must be used immediately */
-Tcl_DString*
+TSP_REMOVABLE Tcl_DString*
 TSP_Util_lang_get_string_double(double sourceVarName) {
     static int doInit = 1;
     static Tcl_DString ds;
@@ -123,7 +123,7 @@ TSP_Util_lang_get_string_double(double sourceVarName) {
 /*********************************************************************************************/
 /* get a string from a var */
 /* string must be used immediately */
-Tcl_DString*
+TSP_REMOVABLE Tcl_DString*
 TSP_Util_lang_get_string_var(Tcl_Obj* sourceVarName) {
     static int doInit = 1;
     static Tcl_DString ds;
@@ -143,7 +143,7 @@ TSP_Util_lang_get_string_var(Tcl_Obj* sourceVarName) {
 
 /*********************************************************************************************/
 /* assign a var from a boolean */
-Tcl_Obj*
+TSP_REMOVABLE Tcl_Obj*
 TSP_Util_lang_assign_var_boolean(Tcl_Obj* targetVarName, int sourceVarName) {
     if (targetVarName != NULL) {
         Tcl_DecrRefCount(targetVarName);
@@ -156,7 +156,7 @@ TSP_Util_lang_assign_var_boolean(Tcl_Obj* targetVarName, int sourceVarName) {
 
 /*********************************************************************************************/
 /* assign a var from an int */
-Tcl_Obj*
+TSP_REMOVABLE Tcl_Obj*
 TSP_Util_lang_assign_var_int(Tcl_Obj* targetVarName, Tcl_WideInt sourceVarName) {
     if (targetVarName != NULL) {
         Tcl_DecrRefCount(targetVarName);
@@ -169,7 +169,7 @@ TSP_Util_lang_assign_var_int(Tcl_Obj* targetVarName, Tcl_WideInt sourceVarName) 
 
 /*********************************************************************************************/
 /* assign a var from an double */
-Tcl_Obj*
+TSP_REMOVABLE Tcl_Obj*
 TSP_Util_lang_assign_var_double(Tcl_Obj* targetVarName, double sourceVarName) {
     if (targetVarName != NULL) {
         Tcl_DecrRefCount(targetVarName);
@@ -182,7 +182,7 @@ TSP_Util_lang_assign_var_double(Tcl_Obj* targetVarName, double sourceVarName) {
 
 /*********************************************************************************************/
 /* assign a var from an string */
-Tcl_Obj*
+TSP_REMOVABLE Tcl_Obj*
 TSP_Util_lang_assign_var_string(Tcl_Obj* targetVarName, Tcl_DString* sourceVarName) {
     if (targetVarName != NULL) {
         Tcl_DecrRefCount(targetVarName);
@@ -195,7 +195,7 @@ TSP_Util_lang_assign_var_string(Tcl_Obj* targetVarName, Tcl_DString* sourceVarNa
 
 /*********************************************************************************************/
 /* assign a var from an string const */
-Tcl_Obj*
+TSP_REMOVABLE Tcl_Obj*
 TSP_Util_lang_assign_var_string_const(Tcl_Obj* targetVarName, char* sourceVarName) {
     if (targetVarName != NULL) {
         Tcl_DecrRefCount(targetVarName);
@@ -208,7 +208,7 @@ TSP_Util_lang_assign_var_string_const(Tcl_Obj* targetVarName, char* sourceVarNam
 
 /*********************************************************************************************/
 /* assign a var from a var */
-Tcl_Obj*
+TSP_REMOVABLE Tcl_Obj*
 TSP_Util_lang_assign_var_var(Tcl_Obj* targetVarName, Tcl_Obj* sourceVarName) {
     if (targetVarName != NULL) {
         Tcl_DecrRefCount(targetVarName);
@@ -224,7 +224,7 @@ TSP_Util_lang_assign_var_var(Tcl_Obj* targetVarName, Tcl_Obj* sourceVarName) {
 
 /*********************************************************************************************/
 /* assign an array & element from a var */
-int
+TSP_REMOVABLE int
 TSP_Util_lang_assign_array_var(Tcl_Interp* interp, Tcl_Obj* targetArrayVar, Tcl_Obj* targetIdxVar, Tcl_Obj* var) {
     Tcl_Obj* obj;
     obj = Tcl_ObjSetVar2(interp, targetArrayVar, targetIdxVar, var, TCL_LEAVE_ERR_MSG);
@@ -237,7 +237,7 @@ TSP_Util_lang_assign_array_var(Tcl_Interp* interp, Tcl_Obj* targetArrayVar, Tcl_
 
 /*********************************************************************************************/
 /* compare a Tcl_DString to a const string. use negative length to find first null in string2 */
-int
+TSP_REMOVABLE int
 TSP_Util_string_compare_const(Tcl_DString* s1, char* string2, int length2) {
     char* string1;
     int length1;
@@ -261,7 +261,7 @@ TSP_Util_string_compare_const(Tcl_DString* s1, char* string2, int length2) {
 
 /*********************************************************************************************/
 /* compare two Tcl_DStrings */
-int
+TSP_REMOVABLE int
 TSP_Util_string_compare(Tcl_DString* s1, Tcl_DString* s2) {
     char* string2;
     int length2;
@@ -281,7 +281,7 @@ Tcl_DString* TSP_UTIL_dstring_from_char (char* str, Tcl_DString* tmpvar) {
 
 /*********************************************************************************************/
 /* create a constant string obj                                                              */
-Tcl_Obj*
+TSP_REMOVABLE Tcl_Obj*
 TSP_Util_const_string(char* str) {
     Tcl_Obj* constObj;
     constObj = Tcl_NewStringObj(str, -1);
@@ -291,7 +291,7 @@ TSP_Util_const_string(char* str) {
 
 /*********************************************************************************************/
 /* create a constant wide int obj                                                            */
-Tcl_Obj*
+TSP_REMOVABLE Tcl_Obj*
 TSP_Util_const_int(Tcl_WideInt i) {
     Tcl_Obj* constObj;
     constObj = Tcl_NewWideIntObj(i);
@@ -301,7 +301,7 @@ TSP_Util_const_int(Tcl_WideInt i) {
 
 /*********************************************************************************************/
 /* create a constant double obj                                                              */
-Tcl_Obj*
+TSP_REMOVABLE Tcl_Obj*
 TSP_Util_const_double(double d) {
     Tcl_Obj* constObj;
     constObj = Tcl_NewDoubleObj(d);
