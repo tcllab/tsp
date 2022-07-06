@@ -21,6 +21,10 @@ invoked directly, bypassing the Tcl interpreter.
 
 TSP is written entirely in Tcl, with support libraries written in C and Java.
 
+Changes to original TSP
+* limited Namespace support for proc names and variables (see Features)
+* package support with ::tsp::init_package // ::tsp::finalize_package (documentation still todo)
+* some bugfixes I ran into 
 
 # Docs
 
