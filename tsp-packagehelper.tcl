@@ -97,9 +97,24 @@ unsigned short __tcc_int_fpu_control = 0x137f | 0x0c00;
     set ::tsp::LOAD_DLLS "" 
     set ::tsp::EXTERNAL_DLLS "" 
     
+    if {[info command ::__proc] eq ""} {
+        rename ::proc ::__proc
+        ::__proc ::proc {procName procargs procbody} {
+            lappend ::tsp::TCL_PROCS  [list $procName $procargs $procbody]
+            if {[catch {uplevel 0 ::__proc [list $procName $procargs $procbody]} err]} {
+                rename ::proc ""
+                rename ::__proc ::proc
+                return -code error $err
+            }
+        }
+    }
 }
 
 proc ::tsp::finalize_package {{packagedir ""} {compiler none}} {
+    if {[info command ::__proc] eq "::__proc"} {
+        rename ::proc ""
+        rename ::__proc ::proc
+    }
     if {$::tsp::PACKAGE_NAME eq ""} {
          puts "Err: No package name given: use init_package packagename"
         set ::tsp::COMPILE_PACKAGE 0
@@ -133,18 +148,20 @@ proc ::tsp::finalize_package {{packagedir ""} {compiler none}} {
     ::tsp::write_pkgIndex $::tsp::PACKAGE_NAME
     
     # copy source to package... if already in place, rename
-    set t [clock format [clock seconds] -format "%Y-%m-%d_%H-%M-%S"]
-    set srcname "${::tsp::PACKAGE_NAME}_tsp_${t}.tcl"
-    set srcname [file join $tsp::PACKAGE_DIR $srcname]
-    set vdiff 1
-    catch {
-        set lastsrcname [file join $tsp::PACKAGE_DIR "${::tsp::PACKAGE_NAME}_tsp_*.tcl"]
-        set lastsrcname [lindex [lsort -decreasing [glob $lastsrcname]] 0]
-        set vdiff [version:filediff $::tsp::ACTSOURCE $lastsrcname]
-    }
-    if {$vdiff >0} {
-        puts "Copy src to $srcname"
-        file copy "$::tsp::ACTSOURCE" "$srcname"
+    if {[file exist $::tsp::ACTSOURCE]} {
+        set t [clock format [clock seconds] -format "%Y-%m-%d_%H-%M-%S"]
+        set srcname "${::tsp::PACKAGE_NAME}_tsp_${t}.tcl"
+        set srcname [file join $tsp::PACKAGE_DIR $srcname]
+        set vdiff 1
+        catch {
+            set lastsrcname [file join $tsp::PACKAGE_DIR "${::tsp::PACKAGE_NAME}_tsp_*.tcl"]
+            set lastsrcname [lindex [lsort -decreasing [glob $lastsrcname]] 0]
+            set vdiff [version:filediff $::tsp::ACTSOURCE $lastsrcname]
+        }
+        if {$vdiff >0} {
+            puts "Copy src to $srcname"
+            file copy "$::tsp::ACTSOURCE" "$srcname"
+        }
     }
     
     ::tsp::compile_package $::tsp::PACKAGE_NAME $compiler
@@ -558,7 +575,7 @@ proc ::tsp::compile_package {packagename {compiler tcc}} {
 
 proc ::tsp::splice_src {filename} {
     if {![file exists $filename]} {
-        puts "ERROR: $filename source not found"
+        #puts "ERROR: $filename source not found"
         return -1
     }
 
