@@ -71,6 +71,71 @@ set tsp::PACKAGE_NAMESPACE pkg
     }
     
 ```
+## Package support
+Package support depends on the package tcc4tcl_helper to work, someday it will be integrated here, meanwhile find it here https://github.com/MichaelMiR01/tccide/tree/main/subpackages
+
+Package support (tsp_packagehelper.tcl) introduces two commands
+* ::tsp::init_package {packagename {packagenamespace ""} {packageversion 1.0} {tclversion TCL_VERSION}}
+* ::tsp::finalize_package {{packagedir ""} {compiler none}}
+
+TSP will generate package code in the given packagedir (packagedir defaults to packagename).
+It writes out
+
+* packagename.c
+* packagename.tclprocs.tcl
+* packagename.puretcl.tcl
+* pkgIndex.tcl
+* packagename.dll
+
+compiler can be **intern/memory** or **export**. 
+
+   **intern** (eq memory) will compile to memory and immediatly install the compiled procs
+    
+   **export** will build a shared lib (.so//.dll) an write it into the package dir as **packagename.dll // packagename.so**
+
+* packagename.tclprocs.tcl    contains all TSP procs defined as tcl-only and will be sourced, if loading the dll fails
+* packagename.puretcl.tcl     TSP collects all proc definitions between init_package and finalize_package and spits them here. This will be sourced from pkgIndex, so not only tsp and tcc proc are loaded, but tcl procs can also be defined as helpers
+
+```
+#example
+package require tsp
+
+::tsp::init_package tnop 
+
+set handle $tsp::TCC_HANDLE
+$handle cproc cnop {Tcl_Interp* interp } char* {
+    // this is a pure c-function
+     return "cnop";
+}
+::tsp::proc tspnop {} {
+    #this is a transpiled function, its tcl code will go to tnop.tclprocs.tcl
+    #tsp::procdef void
+    puts "tspnop"
+}
+proc tclnop {} {
+    # this is a pure tcl function. its code will go to tnop.puretcl.tcl
+    puts "tclnop "
+}
+::tsp::printLog 
+::tsp::finalize_package tnop export
+```
+
+The exported package can now be loaded with package require packagename.
+
+Furthermore, TSP will try to spit out some compiler directives for tcc/gcc you can use as boilerplate to recompile the sourcecode with an optimizing compiler.
+
+Packages can be enriched with external libraries with the following directives:
+```
+proc ::tsp::add_tclinclude {fname}
+    # load tcls for additional sources, issues a source (fname) command into pkgIndex
+
+proc ::tsp::add_bininclude {fname} 
+    # load_dlls for dlls wich should be loaded into interp, issues a load (fname) command into pkgIndex
+
+proc ::tsp::add_dllinclude {fname}
+    # external dlls wich are dependencies and do not get loaded into interp but linked to your c-code (like jpeg.dll)
+    # tries to copy fname.dll into [pwd], so tcl can find it and dload
+```
 
 ## Limitation on proc name and variable names
 
