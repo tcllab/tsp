@@ -160,11 +160,11 @@ proc ::tsp::logCompilable {compUnitDict compilable} {
 # optional filehandle, defaults to stderr
 # optional proc name pattern, defaults to * 
 #
-proc ::tsp::printLog {{fd stdout} {patt *}} {
+proc ::tsp::printLog {{fd stdout} {patt *} {breakeval 1}} {
     if {$fd != "stdout"} {
         puts [::tsp::log $patt]
     }
-    puts $fd [::tsp::log $patt]
+    puts $fd [::tsp::log $patt $breakeval]
 }
 
 
@@ -173,8 +173,9 @@ proc ::tsp::printLog {{fd stdout} {patt *}} {
 # optional filehandle, defaults to stderr
 # optional proc name pattern, defaults to * 
 #
-proc ::tsp::log {{patt *}} {
+proc ::tsp::log {{patt *} {breakeval 0}} {
     set result ""
+    set numerrors 0
     set keys [lsort [dict keys $::tsp::COMPILER_LOG]]
     foreach key $keys {
         if {[string match $patt $key]} {
@@ -187,9 +188,17 @@ proc ::tsp::log {{patt *}} {
             foreach warn [dict get $::tsp::COMPILER_LOG $key warnings] {
                 append result "    $warn" \n
             }
+            incr numerrors [llength [dict get $::tsp::COMPILER_LOG $key errors]]
         }
     }
-    return $result
+    if {$numerrors==0} {
+        return $result
+    }
+    if {$breakeval>0} {
+        return -code error "$result\n $numerrors errors in transpiling unit, execution halted\n "
+    } else {
+        return "$result\n $numerrors errors in transpiling unit\n "
+    }
 }
 
 
