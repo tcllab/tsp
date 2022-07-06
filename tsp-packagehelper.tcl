@@ -174,7 +174,7 @@ proc ::tsp::test_packageX {packagename {callcmd ""} {shell "./tclkit_866_3.upx.e
         puts "Creating new exec"
         set fd [open resrc.tcl w]
         puts "appending auto_path with [file dir $tsp::PACKAGE_DIR]"
-        puts $fd "console show"
+        puts $fd "catch {console show}"
         puts $fd "lappend auto_path [file dir $tsp::PACKAGE_DIR]"
         puts "Loading package... $packagename"
         puts $fd "package require $packagename"
