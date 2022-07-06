@@ -50,14 +50,21 @@ a level of additional runtime interpretation.
     lappend foo {*}$s                ;# invalid: expansion syntax not allows
 ```
 
-## Namespace not supported for proc names
+## Namespace support limited for proc names 
 
-Currently, procedures can only be defined in the global namespace.
+Procedures can be defined in the global namespace or any valid namespace. 
+Still be careful with variables from namespaces, this is not tested very well
 
 ```
-    tsp::proc ::pkg::foo {} {        ;# invalid: namespace procname not allowed
+    tsp::proc ::pkg::foo {} {        ;# valid: 
         #tsp::procdef void
     }
+
+    tsp::proc ::pkg::foo {} {        ;# 
+        variable v                   ;#should work, but test before usage
+        #tsp::procdef void
+    }
+    
 ```
 
 ## Limitation on proc name and variable names
