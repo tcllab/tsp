@@ -547,8 +547,9 @@ proc ::tsp::compile_package {packagename {compiler tcc}} {
     } err
     cd $wd
     puts "Result:\n$err\n"
-    if {[string first " error: " $err]>-1} {
+    if {[llength $::errorCode]>1} {
         puts "Compiling seems to have errors, execution halted"
+        puts "errorCode $::errorCode"
         return -code error
     }
     return 1
