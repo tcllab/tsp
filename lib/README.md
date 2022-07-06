@@ -6,7 +6,11 @@ The following packages are required for use with C/Tcl.
 JTcl does not require any external packages, as the required
 packages 'hyde' and 'parser' are included in the JTcl distribution.
 
-critcl-3.1.15 is no longer needed for tsp4tcc uses tcc4tcl
+critcl-3.1.15 is no longer needed for tsp4tcc uses tcc4tcl (tcc 0.9.27)
+
+tcc4tcl (tcc 0.9.27) can be found here     https://github.com/MichaelMiR01/tcc4tcl/releases
+
+Precompiled binaries for tcc4tcl can be found here     https://github.com/MichaelMiR01/tccide/
 
 crtitcl can be found here, just in case    https://github.com/andreas-kupries/critcl/releases
 
