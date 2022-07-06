@@ -542,6 +542,7 @@ proc ::tsp::compile_package {packagename {compiler tcc}} {
     #set cdirect [string map [list "$packagename.dll" $dllname] $cdirect]
     
     puts "Compiling external $cdirect"
+    set ::errorCode ""
     catch {
         eval exec $cdirect
     } err
