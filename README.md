@@ -24,6 +24,7 @@ TSP is written entirely in Tcl, with support libraries written in C and Java.
 Changes to original TSP
 * limited Namespace support for proc names and variables (see  [Features](./docs/tsp-lang-features.md))
 * package support with ::tsp::init_package // ::tsp::finalize_package (see  [Features](./docs/tsp-lang-features.md))
+* #tsp::inlinec and #tsp::altTCL directives to include native c-code and alternative tcl-code (see [Compiler Usage](./docs/compiler-usage.md))
 * some bugfixes I ran into 
 
 # Docs
