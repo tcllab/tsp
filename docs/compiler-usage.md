@@ -42,11 +42,13 @@ proc can also be specified with a single underscore **('_')**.
 a convenience for `tsp::log _`
 
 
-### `tsp::printLog` *?outfd? ?proc?*
+### `tsp::printLog` *?outfd? ?proc? ?breakeval?*
 
 `tsp::printLog` prints the compiler log.  Optional outfd specifies a writable file handle, stderr
 is the default.  Optional proc is specified, only that log is returned.  The most recent compiled
 proc can also be specified with a single underscore **('_')**.
+
+**breakeval** defaults to 1, so that TSP returns with an error, if there are any errors in transpilation.
 
 
 ## Annotations
