@@ -35,16 +35,10 @@ TSP_Cmd_getCmdInfo(Tcl_Interp* interp, char* cmd) {
      return &cmdInfo;
 }
 
-/* define TSP_REMOVABLE as static inline     to enable tcc dead code elimination */
-#ifdef __TINYC__
-#define TSP_REMOVABLE static inline 
-#else
-#define TSP_REMOVABLE static
-#endif
 
 /* builtins command - a function that calls the builtin and fills in command obj name */
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_after (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -62,7 +56,7 @@ TSP_Cmd_builtin_after (ClientData dummy, Tcl_Interp* interp, int objc, struct Tc
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_append (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -80,7 +74,7 @@ TSP_Cmd_builtin_append (ClientData dummy, Tcl_Interp* interp, int objc, struct T
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_apply (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -98,7 +92,7 @@ TSP_Cmd_builtin_apply (ClientData dummy, Tcl_Interp* interp, int objc, struct Tc
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_array (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -116,7 +110,7 @@ TSP_Cmd_builtin_array (ClientData dummy, Tcl_Interp* interp, int objc, struct Tc
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_binary (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -134,7 +128,7 @@ TSP_Cmd_builtin_binary (ClientData dummy, Tcl_Interp* interp, int objc, struct T
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_break (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -152,7 +146,7 @@ TSP_Cmd_builtin_break (ClientData dummy, Tcl_Interp* interp, int objc, struct Tc
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_case (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -170,7 +164,7 @@ TSP_Cmd_builtin_case (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_catch (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -188,7 +182,7 @@ TSP_Cmd_builtin_catch (ClientData dummy, Tcl_Interp* interp, int objc, struct Tc
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_cd (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -206,7 +200,7 @@ TSP_Cmd_builtin_cd (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_O
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_chan (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -224,12 +218,11 @@ TSP_Cmd_builtin_chan (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_clock (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
     static ClientData clientData = NULL;
-    static int result;
     if (cmdProc == NULL) {
         Tcl_CmdInfo* cmdInfo;
         cmdInfo = TSP_Cmd_getCmdInfo(interp, "::clock");
@@ -240,13 +233,10 @@ TSP_Cmd_builtin_clock (ClientData dummy, Tcl_Interp* interp, int objc, struct Tc
         Tcl_IncrRefCount(cmdName);  /* from altercation  */
     }
     objv[0] = cmdName;
-    // somehow we have to reset the proc, or this risks to crash
-    result= (cmdProc)(clientData, interp, objc, objv);
-    cmdProc = NULL;
-    return result;
+    return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_close (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -264,7 +254,7 @@ TSP_Cmd_builtin_close (ClientData dummy, Tcl_Interp* interp, int objc, struct Tc
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_concat (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -282,7 +272,7 @@ TSP_Cmd_builtin_concat (ClientData dummy, Tcl_Interp* interp, int objc, struct T
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_continue (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -300,7 +290,7 @@ TSP_Cmd_builtin_continue (ClientData dummy, Tcl_Interp* interp, int objc, struct
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_dict (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -318,7 +308,7 @@ TSP_Cmd_builtin_dict (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_encoding (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -336,7 +326,7 @@ TSP_Cmd_builtin_encoding (ClientData dummy, Tcl_Interp* interp, int objc, struct
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_eof (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -354,7 +344,7 @@ TSP_Cmd_builtin_eof (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_error (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -372,7 +362,7 @@ TSP_Cmd_builtin_error (ClientData dummy, Tcl_Interp* interp, int objc, struct Tc
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_eval (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -390,7 +380,7 @@ TSP_Cmd_builtin_eval (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_exec (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -408,7 +398,7 @@ TSP_Cmd_builtin_exec (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_exit (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -426,7 +416,7 @@ TSP_Cmd_builtin_exit (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_expr (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -444,7 +434,7 @@ TSP_Cmd_builtin_expr (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_fblocked (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -462,7 +452,7 @@ TSP_Cmd_builtin_fblocked (ClientData dummy, Tcl_Interp* interp, int objc, struct
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_fconfigure (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -480,7 +470,7 @@ TSP_Cmd_builtin_fconfigure (ClientData dummy, Tcl_Interp* interp, int objc, stru
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_fcopy (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -498,7 +488,7 @@ TSP_Cmd_builtin_fcopy (ClientData dummy, Tcl_Interp* interp, int objc, struct Tc
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_file (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -516,7 +506,7 @@ TSP_Cmd_builtin_file (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_fileevent (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -534,7 +524,7 @@ TSP_Cmd_builtin_fileevent (ClientData dummy, Tcl_Interp* interp, int objc, struc
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_flush (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -552,7 +542,7 @@ TSP_Cmd_builtin_flush (ClientData dummy, Tcl_Interp* interp, int objc, struct Tc
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_for (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -570,7 +560,7 @@ TSP_Cmd_builtin_for (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_foreach (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -588,7 +578,7 @@ TSP_Cmd_builtin_foreach (ClientData dummy, Tcl_Interp* interp, int objc, struct 
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_format (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -606,7 +596,7 @@ TSP_Cmd_builtin_format (ClientData dummy, Tcl_Interp* interp, int objc, struct T
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_gets (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -624,7 +614,7 @@ TSP_Cmd_builtin_gets (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_glob (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -642,7 +632,7 @@ TSP_Cmd_builtin_glob (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_global (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -660,7 +650,7 @@ TSP_Cmd_builtin_global (ClientData dummy, Tcl_Interp* interp, int objc, struct T
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_if (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -678,7 +668,7 @@ TSP_Cmd_builtin_if (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_O
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_incr (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -696,7 +686,7 @@ TSP_Cmd_builtin_incr (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_info (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -714,7 +704,7 @@ TSP_Cmd_builtin_info (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_interp (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -732,7 +722,7 @@ TSP_Cmd_builtin_interp (ClientData dummy, Tcl_Interp* interp, int objc, struct T
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_join (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -750,7 +740,7 @@ TSP_Cmd_builtin_join (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_lappend (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -768,7 +758,7 @@ TSP_Cmd_builtin_lappend (ClientData dummy, Tcl_Interp* interp, int objc, struct 
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_lassign (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -786,7 +776,7 @@ TSP_Cmd_builtin_lassign (ClientData dummy, Tcl_Interp* interp, int objc, struct 
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_lindex (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -804,7 +794,7 @@ TSP_Cmd_builtin_lindex (ClientData dummy, Tcl_Interp* interp, int objc, struct T
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_linsert (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -822,7 +812,7 @@ TSP_Cmd_builtin_linsert (ClientData dummy, Tcl_Interp* interp, int objc, struct 
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_list (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -840,7 +830,7 @@ TSP_Cmd_builtin_list (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_llength (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -858,7 +848,7 @@ TSP_Cmd_builtin_llength (ClientData dummy, Tcl_Interp* interp, int objc, struct 
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_lmap (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -876,7 +866,7 @@ TSP_Cmd_builtin_lmap (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_load (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -894,7 +884,7 @@ TSP_Cmd_builtin_load (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_lrange (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -912,7 +902,7 @@ TSP_Cmd_builtin_lrange (ClientData dummy, Tcl_Interp* interp, int objc, struct T
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_lrepeat (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -930,7 +920,7 @@ TSP_Cmd_builtin_lrepeat (ClientData dummy, Tcl_Interp* interp, int objc, struct 
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_lreplace (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -948,7 +938,7 @@ TSP_Cmd_builtin_lreplace (ClientData dummy, Tcl_Interp* interp, int objc, struct
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_lreverse (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -966,7 +956,7 @@ TSP_Cmd_builtin_lreverse (ClientData dummy, Tcl_Interp* interp, int objc, struct
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_lsearch (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -984,7 +974,7 @@ TSP_Cmd_builtin_lsearch (ClientData dummy, Tcl_Interp* interp, int objc, struct 
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_lset (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1002,7 +992,7 @@ TSP_Cmd_builtin_lset (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_lsort (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1020,7 +1010,7 @@ TSP_Cmd_builtin_lsort (ClientData dummy, Tcl_Interp* interp, int objc, struct Tc
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_namespace (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1038,7 +1028,7 @@ TSP_Cmd_builtin_namespace (ClientData dummy, Tcl_Interp* interp, int objc, struc
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_open (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1056,7 +1046,7 @@ TSP_Cmd_builtin_open (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_package (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1074,7 +1064,7 @@ TSP_Cmd_builtin_package (ClientData dummy, Tcl_Interp* interp, int objc, struct 
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_pid (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1092,7 +1082,7 @@ TSP_Cmd_builtin_pid (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_proc (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1110,7 +1100,7 @@ TSP_Cmd_builtin_proc (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_puts (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1128,7 +1118,7 @@ TSP_Cmd_builtin_puts (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_pwd (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1146,7 +1136,7 @@ TSP_Cmd_builtin_pwd (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_read (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1164,7 +1154,7 @@ TSP_Cmd_builtin_read (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_regexp (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1182,7 +1172,7 @@ TSP_Cmd_builtin_regexp (ClientData dummy, Tcl_Interp* interp, int objc, struct T
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_regsub (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1200,7 +1190,7 @@ TSP_Cmd_builtin_regsub (ClientData dummy, Tcl_Interp* interp, int objc, struct T
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_rename (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1218,7 +1208,7 @@ TSP_Cmd_builtin_rename (ClientData dummy, Tcl_Interp* interp, int objc, struct T
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_return (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1236,7 +1226,7 @@ TSP_Cmd_builtin_return (ClientData dummy, Tcl_Interp* interp, int objc, struct T
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_scan (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1254,7 +1244,7 @@ TSP_Cmd_builtin_scan (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_seek (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1272,7 +1262,7 @@ TSP_Cmd_builtin_seek (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_set (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1290,7 +1280,7 @@ TSP_Cmd_builtin_set (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_socket (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1308,7 +1298,7 @@ TSP_Cmd_builtin_socket (ClientData dummy, Tcl_Interp* interp, int objc, struct T
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_source (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1326,7 +1316,7 @@ TSP_Cmd_builtin_source (ClientData dummy, Tcl_Interp* interp, int objc, struct T
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_split (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1344,7 +1334,7 @@ TSP_Cmd_builtin_split (ClientData dummy, Tcl_Interp* interp, int objc, struct Tc
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_string (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1362,7 +1352,7 @@ TSP_Cmd_builtin_string (ClientData dummy, Tcl_Interp* interp, int objc, struct T
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_subst (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1380,7 +1370,7 @@ TSP_Cmd_builtin_subst (ClientData dummy, Tcl_Interp* interp, int objc, struct Tc
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_switch (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1398,7 +1388,7 @@ TSP_Cmd_builtin_switch (ClientData dummy, Tcl_Interp* interp, int objc, struct T
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_tailcall (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1416,7 +1406,7 @@ TSP_Cmd_builtin_tailcall (ClientData dummy, Tcl_Interp* interp, int objc, struct
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_tell (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1434,7 +1424,7 @@ TSP_Cmd_builtin_tell (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_time (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1452,7 +1442,7 @@ TSP_Cmd_builtin_time (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_trace (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1470,7 +1460,7 @@ TSP_Cmd_builtin_trace (ClientData dummy, Tcl_Interp* interp, int objc, struct Tc
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_try (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1488,7 +1478,7 @@ TSP_Cmd_builtin_try (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_unload (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1506,7 +1496,7 @@ TSP_Cmd_builtin_unload (ClientData dummy, Tcl_Interp* interp, int objc, struct T
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_unset (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1524,7 +1514,7 @@ TSP_Cmd_builtin_unset (ClientData dummy, Tcl_Interp* interp, int objc, struct Tc
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_update (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1542,7 +1532,7 @@ TSP_Cmd_builtin_update (ClientData dummy, Tcl_Interp* interp, int objc, struct T
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_uplevel (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1560,7 +1550,7 @@ TSP_Cmd_builtin_uplevel (ClientData dummy, Tcl_Interp* interp, int objc, struct 
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_upvar (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1578,7 +1568,7 @@ TSP_Cmd_builtin_upvar (ClientData dummy, Tcl_Interp* interp, int objc, struct Tc
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_variable (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1596,7 +1586,7 @@ TSP_Cmd_builtin_variable (ClientData dummy, Tcl_Interp* interp, int objc, struct
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_vwait (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1614,7 +1604,7 @@ TSP_Cmd_builtin_vwait (ClientData dummy, Tcl_Interp* interp, int objc, struct Tc
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_while (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1632,7 +1622,7 @@ TSP_Cmd_builtin_while (ClientData dummy, Tcl_Interp* interp, int objc, struct Tc
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_yield (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1650,7 +1640,7 @@ TSP_Cmd_builtin_yield (ClientData dummy, Tcl_Interp* interp, int objc, struct Tc
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_yieldto (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
@@ -1668,7 +1658,7 @@ TSP_Cmd_builtin_yieldto (ClientData dummy, Tcl_Interp* interp, int objc, struct 
     return (cmdProc)(clientData, interp, objc, objv);
 }
 
-TSP_REMOVABLE int
+int
 TSP_Cmd_builtin_zlib (ClientData dummy, Tcl_Interp* interp, int objc, struct Tcl_Obj *objv[]) {
     static Tcl_ObjCmdProc* cmdProc = NULL;
     static Tcl_Obj* cmdName = NULL;
