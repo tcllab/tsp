@@ -1,1 +1,1 @@
-package ifneeded parser 0.1 [list load [file join $dir tclparser[info sharedlibextension]]]
+package ifneeded parser 1.001 [list load [file join $dir tclparser[info sharedlibextension]]]
