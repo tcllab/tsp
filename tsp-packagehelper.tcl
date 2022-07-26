@@ -13,6 +13,9 @@
 # 
 ##############################################################################
 
+source [file join [file dirname [info script]] tcc4tcl_helper.tcl]
+
+
 namespace eval ::tsp {
     # added for code package making MiR
     variable COMPILE_PACKAGE 0
@@ -37,6 +40,30 @@ namespace eval ::tsp {
     
     # give name of save tcl source here, otherwise we use __lastsaved__.tcl
     variable ACTSOURCE "__lastsaved__.tcl"
+}
+
+proc ::tsp::hook_proc {} {
+    # we hook the proc construct to get information about package defined procs
+    if {[info command ::__proc] eq ""} {
+        rename ::proc ::__proc
+        ::__proc ::proc {procName procargs procbody} {
+            lappend ::tsp::TCL_PROCS  [list $procName $procargs $procbody]
+            if {[catch {uplevel 0 ::__proc [list $procName $procargs $procbody]} err]} {
+                rename ::proc ""
+                rename ::__proc ::proc
+                return -code error "Error in proc $err"
+            }
+        }
+    }
+}
+
+proc ::tsp::unhook_proc {} {
+    # release the hooked proc construct
+    # if you eval external code, don't forget to handle errors in eval and call unhook_proc, just in case
+    if {[info command ::__proc] eq "::__proc"} {
+        rename ::proc ""
+        rename ::__proc ::proc
+    }
 }
 
 proc ::tsp::init_package {packagename {packagenamespace ""} {packageversion 1.0} {tclversion TCL_VERSION}} {
@@ -97,24 +124,12 @@ unsigned short __tcc_int_fpu_control = 0x137f | 0x0c00;
     set ::tsp::LOAD_DLLS "" 
     set ::tsp::EXTERNAL_DLLS "" 
     
-    if {[info command ::__proc] eq ""} {
-        rename ::proc ::__proc
-        ::__proc ::proc {procName procargs procbody} {
-            lappend ::tsp::TCL_PROCS  [list $procName $procargs $procbody]
-            if {[catch {uplevel 0 ::__proc [list $procName $procargs $procbody]} err]} {
-                rename ::proc ""
-                rename ::__proc ::proc
-                return -code error $err
-            }
-        }
-    }
+    ::tsp::hook_proc
 }
 
 proc ::tsp::finalize_package {{packagedir ""} {compiler none}} {
-    if {[info command ::__proc] eq "::__proc"} {
-        rename ::proc ""
-        rename ::__proc ::proc
-    }
+    ::tsp::unhook_proc
+
     if {$::tsp::PACKAGE_NAME eq ""} {
          puts "Err: No package name given: use init_package packagename"
         set ::tsp::COMPILE_PACKAGE 0
@@ -169,6 +184,27 @@ proc ::tsp::finalize_package {{packagedir ""} {compiler none}} {
     set ::tsp::PACKAGE_NAME ""
 }
 
+proc ::tsp::addExternalCompiler {compiler ccOptions exeDir exeFile {compilertype gccwin32}} {
+    # add external compiler to list EXTERNAL_COMPILERS
+    # $compiler:        compilername cc
+    # $ccOptions       additional options to use with cc
+    # $exeDir           directory to execute cc in
+    # $exeFile          cc to execute
+    # compilertype      can be gccwin32/gcclin64/tccwin32/tcclin64/user   and defines prebuilt ccOptions to use; set to user to have no predefined options
+    tcc4tcl::addExternalCompiler $compiler $ccOptions $exeDir $exeFile $compilertype 
+}
+
+proc ::tsp::safeEval {cmd} {
+    # eval string cmd in global namespace, catch errors and eventually reset proc handler
+    if {[catch {
+        set r [namespace eval :: "$cmd"]
+        puts "Result: $r"
+    } err]} {
+        ::tsp::unhook_proc
+        puts "Eval Error: $err"
+    }
+}
+
 proc ::tsp::add_tclinclude {fname} {
     # load tcls for additional sources
     lappend ::tsp::LOAD_TCLS $fname
@@ -184,6 +220,7 @@ proc ::tsp::add_dllinclude {fname} {
 
 proc ::tsp::test_packageX {packagename {callcmd ""} {shell "./tclkit_866_3.upx.exe"}} {
     # ok, now things really get difficult, if the directory structure doesn't work
+    # this actually only works under windows, you need a tclkit named $shell in the current working dir
     set result "failed testloading package $packagename"
     set callresult ""
     puts "Testing package $packagename"
@@ -249,6 +286,7 @@ proc ::tsp::test_packageX {packagename {callcmd ""} {shell "./tclkit_866_3.upx.e
 
 proc ::tsp::test_package {packagename {callcmd ""}} {
     # ok, now things really get difficult, if the directory structure doesn't work
+    # careful, loading a dll into the interp leads to a lock on the dll file, so recompiling it will fail due to writelock
     set result "failed testloading package $packagename"
     set callresult ""
     puts "Testing package $packagename"
@@ -331,7 +369,7 @@ proc ::tsp::rewrite_procnamespace {} {
         if {[lsearch $::tsp::PACKAGE_PROCS [namespace tail $procname]]<0} {
             # pure c implemented... probs ahead :-)
             set procdef [list $procname "args" [list puts "Not implemented \"$procname\""]]
-            puts "found pure c proc $procname, replacing dummy $procdef"
+            #puts "found pure c proc $procname, replacing dummy $procdef"
             lappend ::tsp::PACKAGE_PROCS $procname $procdef
             set cdef [dict get $state(procdefs) $procname]
             lassign $cdef cprocname rtype cprocargs
@@ -374,7 +412,7 @@ proc ::tsp::write_pkgIndex {packagename} {
         lassign $procdef cproc cvars cbody
         puts $fd "# ${::tsp::PACKAGE_NAMESPACE}::$cproc $cvars"
     }
-    puts $fd "# TCL Procs "
+    puts $fd "\n# TCL Procs "
     puts $fd ""
     set tclpr {}
     catch {set tclpr $::tsp::TCL_PROCS}
@@ -481,7 +519,7 @@ proc ::tsp::write_pkgAltTcl {packagename} {
     }
     close $fd
     
-    ::tsp::splice_src  "$::tsp::ACTSOURCE"
+    #::tsp::splice_src  "$::tsp::ACTSOURCE"
     set filename [file join $tsp::PACKAGE_DIR "${packagename}.puretcl.tcl"]
     set fd [open $filename w]
     puts $fd "#  TSP Pure TCL procs for loadlib complemenary procs"
@@ -504,20 +542,47 @@ proc ::tsp::write_pkgAltTcl {packagename} {
         if {$procname eq "${packagename}_pkgInit"} {
             set ::tsp::PACKAGE_INIT_PROC 1
         }
-        puts $fd "proc ${procname} {$procargs} {$procbody}"
+        puts $fd "proc ${procname} {$procargs} {$procbody}\n"
     }
     
     close $fd
 }
 
-proc ::tsp::compile_package {packagename {compiler tcc}} {
+proc ::tsp::compile_package {packagename {compiler tccwin32}} {
     # evtl compile c-source
+    # compile directives come from tcc4tcl_helper
+    # since tccide is mainly developed for windows
+    # it tries to find tcc.exe and gcc.exe in adjacent dirs to pwd
+    # so, trying to compile the code on external compiler relies on this mechanism
+    # so tcc and gcc options use win32 tcc.exe gcc.exe acoordingly
+    # lin64 tries to call gcc on a linux bash
+    # cross tries calling i686-w64-mingw32-gcc
+    # if this fails, you can still use the generated compiler directives
+    # as a boilerplate for manually compiling the source
+    # compile to memory (intern or memory) and
+    # compile to dynlib (export) 
+    # with the integrated tcc4tcl should however work
+
+    set EXTERNAL_COMPILERS $::tccenv::EXTERNAL_COMPILERS
     
     set ctype -1
-    set ctype [dict get "none -1 tcc 0 gcc 1 cross 2 lin64 3 intern 9 memory 9 export 9 debug 99" $compiler]
+    catch {
+        set ctype [dict get "none -1 intern 9 memory 9 export 9 debug 99" $compiler]
+    }
     if {$ctype<0} {
-        puts "ERROR: Unknown compiler $compiler or given none..."
-        return -1
+        # call plugin compiler here
+        set cc ""
+        if {[dict exists $EXTERNAL_COMPILERS $compiler]} {
+            set ccl [dict get $EXTERNAL_COMPILERS $compiler]
+            lassign $ccl cc ccOptions exeDir exeFile compilertype
+        }
+        if {$cc ne ""} {
+            # call compiler 
+        } else {
+            # error not found
+            puts "ERROR: Unknown compiler $compiler or given none..."
+            return -1
+        }
     }
     if {$ctype==9} {
         puts "Compiling in Memory"
@@ -554,12 +619,11 @@ proc ::tsp::compile_package {packagename {compiler tcc}} {
     if {$::tccenv::tccexecutabledir ne ""} {
         cd $::tccenv::tccexecutabledir
     }
-    set cdirect [lindex $tsp::COMPILE_DIRECTIVES $ctype]
-    #set cdirect [string map [list "$packagename.c" $filename] $cdirect]
-    #set cdirect [string map [list "$packagename.dll" $dllname] $cdirect]
+    
+    set cdirect [dict get $tsp::COMPILE_DIRECTIVES $compiler]
     
     puts "Compiling external $cdirect"
-    set ::errorCode ""
+    set  ::errorCode ""
     catch {
         eval exec $cdirect
     } err
@@ -571,32 +635,6 @@ proc ::tsp::compile_package {packagename {compiler tcc}} {
         return -code error
     }
     return 1
-}
-
-proc ::tsp::splice_src {filename} {
-    if {![file exists $filename]} {
-        #puts "ERROR: $filename source not found"
-        return -1
-    }
-
-    set f [open "$filename"]
-    set data [read $f]
-    close $f
-    set ::tsp::TCL_PROCS ""
-    foreach {dummy procName} [regexp -all -inline -line {^[\s:]*proc (\S+)} $data] {
-        catch {
-            set procargs ""
-            set _procargs [info args $procName]
-            foreach _procarg $_procargs {
-                if {[info default $procName $_procarg def]>0} {
-                    set _procarg "$_procarg \"$def\""
-                } 
-                lappend procargs $_procarg
-            }
-            set procbody [info body $procName]
-            lappend ::tsp::TCL_PROCS  [list $procName $procargs $procbody]
-        }
-    }
 }
 
 proc version:filediff {file1 file2 {cmdEqual {version:cmdEqual}} {cmdAdd {version:cmdAdd}} {cmdDel {version:cmdDel}}} {
@@ -711,5 +749,34 @@ proc version:cmdDel {txt line} {
         incr ::afilediffs
     }
 }
+
+#----------------------------------- Code to remove -----------------------------------------
+
+proc ::tsp::____splice_src {filename} {
+    if {![file exists $filename]} {
+        puts "ERROR: $filename source not found"
+        return -1
+    }
+
+    set f [open "$filename"]
+    set data [read $f]
+    close $f
+    set ::tsp::TCL_PROCS ""
+    foreach {dummy procName} [regexp -all -inline -line {^[\s:]*proc (\S+)} $data] {
+        catch {
+            set procargs ""
+            set _procargs [info args $procName]
+            foreach _procarg $_procargs {
+                if {[info default $procName $_procarg def]>0} {
+                    set _procarg "$_procarg \"$def\""
+                } 
+                lappend procargs $_procarg
+            }
+            set procbody [info body $procName]
+            lappend ::tsp::TCL_PROCS  [list $procName $procargs $procbody]
+        }
+    }
+}
+
 
 

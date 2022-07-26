@@ -1142,9 +1142,9 @@ if {[dict get $compUnit isNative]==0} {
     Tcl_PushCallFrame(interp, frame, Tcl_GetGlobalNamespace(interp), 1);
     }
     set popcf "    Tcl_PopCallFrame(interp); \\\n    ckfree((char*) frame) \n"
-    puts "$name is NOT a native proc"
+    #puts "$name is NOT a native proc"
 } else {
-    puts "$name is a native proc"
+    #puts "$name is a native proc"
 }
 
 
@@ -1471,9 +1471,9 @@ proc ::tsp::lang_compile {compUnitDict code} {
             ::tsp::addWarning compUnit "TCC: $compResult"
             dict set compUnit compiledReference tsp.cmd.${name}Cmd
         } else {
-            puts "Writing Package deffered"
+            #puts "Writing Package deffered"
         }
-        puts "Transpiling done"
+        #puts "Transpiling done"
     } result ]
     if {$result ne ""} {
         puts "Transpile Result: $result"
