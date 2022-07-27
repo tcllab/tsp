@@ -1,23 +1,10 @@
 ##################################################################
 
 # language specific procs - c
-#package require tcc4tcl
 package require tcc4tcl
 
 # FIXME - strings and string command impls should use Tcl_UniChar arrays, not
 #         UTF-8 strings.  
-
-
-# FIXME
-# for testing, set cache dir and clear cache once
-# this is ordinarily in ::tsp::lang_compile
-#::critcl::cache ./.critcl
-#::critcl::clean_cache
-
-
-# force critcl to load so we can capture the original PkgInit bodhy
-#catch {::critcl::cproc}
-#variable ::tsp::critcl_pkginit [info body ::critcl::PkgInit]
 
 
 # BUILTIN_TCL_COMMANDS
@@ -1129,24 +1116,21 @@ proc ::tsp::lang_create_compilable {compUnitDict code} {
     regsub -all {\n *$} $cleanup_defs "\n" cleanup_defs
     regsub -all {\n} $cleanup_defs "\\\n" cleanup_defs
     
-# patch for native compiled routines, that don't need pushcallframe/popcallframe
-set popcf ""
-set pushcf "/* Native proc, no external variables used, dropping PushCallframe/PopCallframe */"
-
-if {[dict get $compUnit isNative]==0} { 
-    set pushcf {
-    /* Tcl_CallFrame is dangerous since it is buried deep in the tcl_internals stubs table */
-    /* could easily break in future TCL_VERSION versions */
-    /* Made it functional against 8.6.6 with no guarantee */
-    frame = (Tcl_CallFrame*) ckalloc(sizeof(Tcl_CallFrame));
-    Tcl_PushCallFrame(interp, frame, Tcl_GetGlobalNamespace(interp), 1);
-    }
-    set popcf "    Tcl_PopCallFrame(interp); \\\n    ckfree((char*) frame) \n"
-    #puts "$name is NOT a native proc"
-} else {
-    #puts "$name is a native proc"
-}
-
+    # patch for native compiled routines, that don't need pushcallframe/popcallframe
+    #   /* Tcl_CallFrame is dangerous since it is buried deep in the tcl_internals stubs table */
+    #   /* could easily break in future TCL_VERSION versions */
+    #   /* Functional against 8.6.6 with no guarantee */
+    
+    set popcf ""
+    set pushcf "/* Native proc, no external variables used, dropping PushCallframe/PopCallframe */"
+    
+    if {[dict get $compUnit isNative]==0} { 
+        set pushcf {
+            frame = (Tcl_CallFrame*) ckalloc(sizeof(Tcl_CallFrame));
+            Tcl_PushCallFrame(interp, frame, Tcl_GetGlobalNamespace(interp), 1);
+        }
+        set popcf "    Tcl_PopCallFrame(interp); \\\n    ckfree((char*) frame) \n"
+    } 
 
     append cleanup_defs $popcf
 
@@ -1219,15 +1203,6 @@ if {$::tsp::PACKAGE_HEADER eq ""} {
     #include "TSP_cmd.c"
     #include "TSP_func.c"
     #include "TSP_util.c"
-
-    #define __i386__ 1
-    #if defined(__i386__)
-    // FPU control word for rounding to nearest mode
-    unsigned short __tcc_fpu_control = 0x137f;
-    // FPU control word for round to zero mode for int conversion
-    unsigned short __tcc_int_fpu_control = 0x137f | 0x0c00;
-    #endif
-    
     }
 }
 
@@ -1343,13 +1318,6 @@ $arg_cleanup_defs
 }
 # end of cfileTemplate1
 
-
-
-
-    # defined by critcl::ccomand
-    #   int TSP_UserCmd_${name}(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj *const objv\[\]) 
-
-
     set cfileTemplate2 \
 {
 
@@ -1395,10 +1363,6 @@ $arg_cleanup_defs
 }
 # end of cfileTemplate2
 
-    # critcl needs two pieces, one for ccode and another form ccommand, so return as a list
-
-    #puts [subst $cfileTemplate2]
-
     return [list [subst $cfileTemplate1] [subst $cfileTemplate2]]
 }
 
@@ -1417,37 +1381,8 @@ proc ::tsp::lang_compile {compUnitDict code} {
     set name [dict get $compUnit name]
     variable ::tsp::cc_output 
     set ::tsp::cc_output ""
-    set results ""
+    set __result ""
     set rc [catch {
-        # debugging critcl
-        #::critcl::config lines 0
-        #::critcl::config keepsrc 1
-        #::critcl::cache ./.critcl
-
-# for testing, this is executed on startup, 
-# uncomment for non-dev
-        #::critcl::clean_cache
-
-        # redefine internal critcl print to capture error messages
-        #::proc ::critcl::print {args} {
-        #    append ::tsp::cc_output [lindex $args end]
-        #}
-
-        # redefine internal critcl PkgInit to return a custom package name, becomes
-        # the package init 
-        #::proc ::critcl::PkgInit {file} [list return Tsp_user_[string tolower $name]]
-
-        # tcl 8.5 has wide ints, make that the min version
-        #::critcl::tcl 8.5
-
-        # cause compile to fail if return is not coded in execution branch
-        #if {[regexp gcc [::critcl::targetconfig]]} {
-        #    ::critcl::cflags -Werror=return-type -O3
-        #}
-
-        # create the code, first is the proc (ccode), second is the tcl interface (ccommand)
-        #::critcl::ccode [lindex $code 0]
-        #::critcl::ccommand ::$name {clientData interp objc objv} [lindex $code 1]
         if {$::tsp::COMPILE_PACKAGE==0} {
             set handle [tcc4tcl::new]
             $handle add_include_path "$::tsp::HOME_DIR/native/clang/"
@@ -1462,27 +1397,17 @@ proc ::tsp::lang_compile {compUnitDict code} {
         }
         $handle ccommand "${myns}::$name" {clientData interp objc objv} [lindex $code 1]
 
-	# cause critcl to compile the code and load the resulting .so lib
-        #::critcl::load
         if {$::tsp::COMPILE_PACKAGE==0} {
             set compResult [$handle go]
-            puts $compResult
-            #append ::tsp::cc_output $compResult
             ::tsp::addWarning compUnit "TCC: $compResult"
             dict set compUnit compiledReference tsp.cmd.${name}Cmd
-        } else {
-            #puts "Writing Package deffered"
-        }
-        #puts "Transpiling done"
-    } result ]
-    if {$result ne ""} {
-        puts "Transpile Result: $result"
+        } 
+        unset handle
+    } __result ]
+    if {$__result ne ""} {
+        puts "Transpile Result:\n$__result"
     }
-    #set critcl_results_dict [critcl::cresults]
-    #set critcl_results_dict []
     set errors ""
-#FIXME: use exl key for new critcl version
-    #catch {set errors [dict get [critcl::cresults] log]}
     set cc_errors ""
     foreach line [split $::tsp::cc_output \n] {
         if {[regexp -nocase error $line]} {
@@ -1492,11 +1417,7 @@ proc ::tsp::lang_compile {compUnitDict code} {
     if {$rc || [string length $cc_errors] > 0} {
         ::tsp::addError compUnit "error compiling $name:\n$result\n$errors\n$cc_errors"
     }
-#FIXME: remove reset for new critcl version
-    #catch {critcl::reset}
 
-    # reset the PkgInit proc for other critcl usage
-    #::proc ::critcl::PkgInit {file} $::tsp::critcl_pkginit
     return $rc
 }
 
@@ -1505,7 +1426,6 @@ proc ::tsp::lang_compile {compUnitDict code} {
 # define a compiledReference in the interp
 #
 proc ::tsp::lang_interp_define {compUnitDict} {
-    # this is handled by critcl
     return
 }
 

@@ -162,7 +162,6 @@ proc ::tsp::compile_proc {file name procargs body} {
             ::tsp::logErrorsWarnings compUnit
         } else {
             # parse_body ok, let's see if we can compile it
-            #puts "Generating C-Code\n"
             set compilable [::tsp::lang_create_compilable compUnit $code]
             ::tsp::logCompilable compUnit [join $compilable ""]
             set rc [::tsp::lang_compile compUnit $compilable]

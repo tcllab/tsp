@@ -10,7 +10,6 @@ namespace eval tccenv {
     
     variable localdir [pwd]
     variable pathprefix [file dirname [file dirname [file dirname [info script]]]]
-    #puts "pwd [pwd] exe [info nameofexecutable] script [info script] prefix $pathprefix"
     variable tccexecutabledir $localdir
     variable tccexecutable  tcc.exe
     variable tccmaindir     ${tccexecutabledir}
@@ -92,9 +91,7 @@ namespace eval tccenv {
 
 proc ::tcc4tcl::getsubdirs {includepath} {
     set retpath {}
-    #puts "Entering..."
     foreach path $includepath {
-        #puts "Searching $path..."
         if {![file isdir $path]} {
             #try guessing in current subdirs
             if {[file isdir [::tcc4tcl::shortenpath $path]]} {
@@ -102,7 +99,6 @@ proc ::tcc4tcl::getsubdirs {includepath} {
             } else {
                 if {[file isdir [file tail $path]]} {set path [file tail $path]; lappend retpath $path}
             }
-            #puts "replacing path $path"
         }
         update
         set subdirs ""
@@ -110,7 +106,6 @@ proc ::tcc4tcl::getsubdirs {includepath} {
             set subdirs [glob -nocomplain -directory $path -types d *]
         }
         foreach sub $subdirs {
-            #puts "got subdir ...$sub..."
             set sub [file tail $sub]
             lappend retpath [file join $path $sub]
             append retpath " [::tcc4tcl::getsubdirs [file join $path $sub]]"
@@ -120,7 +115,6 @@ proc ::tcc4tcl::getsubdirs {includepath} {
 }
 
 proc ::tcc4tcl::searchDir {dir inDir} {
-        #puts "Searching $dir in $inDir"
         set subdirs ""
         if {$dir==$inDir} {
             return $inDir
@@ -129,13 +123,11 @@ proc ::tcc4tcl::searchDir {dir inDir} {
             set subdirs [glob -nocomplain -directory $inDir -types d *]
         }
         foreach sub $subdirs {
-            #puts "got subdir ...$sub..."
             if {[file tail $sub]==$dir} {
                 return $sub
             }
         }
         foreach sub $subdirs {
-             #puts "search subdir ...$sub..."
              set d [::tcc4tcl::searchDir $dir $sub]
              if {$d!=""} {
                 return $d
@@ -145,7 +137,6 @@ proc ::tcc4tcl::searchDir {dir inDir} {
 }
 
 proc ::tcc4tcl::shortenpath {path {prefix ""}} {
-    #
     set shortincludepath ""
     if {$prefix==""} {
         set prefix $::tccenv::pathprefix/
@@ -153,7 +144,6 @@ proc ::tcc4tcl::shortenpath {path {prefix ""}} {
     set prefix1 ${prefix}lib/
     set prefix2 ${prefix}lib/tcc4tcl-0.30/
     
-    #puts "Analysing $path"
     set shortresult ""
     set shortpath [string map [list $prefix ""] $path]
     set shortpath1 [string map [list $prefix1 ""] $path] 
@@ -176,7 +166,6 @@ proc ::tcc4tcl::analyse_includes {handle {prefix ""}} {
     set prefix2 ${prefix}lib/tcc4tcl-0.30/
     
     foreach path $usedpath {
-        #puts "Analysing $path"
         set shortpath [string map [list $prefix ""] $path]
         set shortpath1 [string map [list $prefix1 ""] $path] 
         set shortpath2 [string map [list $prefix2 ""] $path] 
@@ -276,7 +265,6 @@ proc ::tcc4tcl::prepare_compilerdirectives {filepath handle} {
     # $compilertype      can be gccwin32/gcclin64/tccwin32/tcclin64/user   and defines prebuilt ccOptions to use; set to user to have no predefined options
     puts "Making Directives for $filepath ($::tccenv::tccmaindir)" 
     set pathway [::tcc4tcl::analyse_includes $handle]
-    #puts "Paths: $pathway"
     set includestccwin32 "-Iinclude -Iinclude/stdinc -Iinclude/generic -Iinclude/generic/win -Iinclude/xlib -Iwin32 -Iwin32/winapi "
     set includesgccwin32 "-Iinclude -Iinclude/generic -Iinclude/generic/win -Iinclude/xlib"
     set includestcclin64 "-Iinclude -Iinclude/stdinc -Iinclude/generic -Iinclude/generic/unix -Iinclude/xlib "
@@ -299,7 +287,6 @@ proc ::tcc4tcl::prepare_compilerdirectives {filepath handle} {
     set includes_generic ""
     
     foreach incpath $pathway {
-        #puts "include $incpath relTo $::tccenv::tccmaindir --> [relTo $incpath $::tccenv::tccmaindir]"
         if {[string first include/ [string tolower $incpath]]<0} {
             if {[string first win32 [string tolower $incpath]]<0} {
                 lappend includes_generic "-I[relTo $incpath $::tccenv::tccmaindir]"
@@ -447,17 +434,12 @@ proc ::tcc4tcl::write_packagecode {handle packagename {filepath ""} {packagevers
     # beautify code
     set mycode [::tcc4tcl::reformat [string map [list [eol] \n] $mycode] 4]
     set $state(type) $oldtype
-    #puts [$handle add_include_path] 
     
     set filename [file join $filepath "$packagename.c"]
     set ccdirectives [::tcc4tcl::prepare_compilerdirectives $filename $::tsp::TCC_HANDLE]
     set fp [open $filename w]
     puts $fp "/***************** Automatically Created with TCC4TCL Helper and maybe TSP **********************************/"
     puts $fp "/* Compiler directives are raw estimates, please adapt to given pathstructure */\n"
-    #puts $fp "/* $tcc_compile  */\n"
-    #puts $fp "/* $gcc_compile */\n"
-    #puts $fp "/* $cross_compile  */\n"
-    #puts $fp "/* $lin64_compile  */\n"
     foreach {compiler ccdirective} $ccdirectives {
         puts $fp "/* for $compiler use */"
         puts $fp "/* $ccdirective */\n"
@@ -550,120 +532,3 @@ proc ::tcc4tcl::reformat {tclcode {pad 4}} {
 }
 
 #----------------------------------- remove this code in future versions -----------------------
-proc ::tcc4tcl::____analyse_codeincludes {fromfile code includepath mdone {usedpath ""}} {
-    # a simple (too simple) routine to find all include files and their paths recursivly
-    # unable to parse any kind of ifdef ifndef
-    # so will mostly try to find ANY file thats behind an #include directive
-    
-    variable done
-    variable includes_missing
-    #puts "Analysing ... $fromfile"
-    update
-    set done $mdone
-    set cinc 0
-    set includer "#include"
-    set rgincluder "#(\\s*)include"
-    set lines [split $code \n]
-    foreach line $lines {
-        #set pos [string first $includer [string tolower $line]]
-        set pos [regexp -nocase $rgincluder $line]
-        if {$pos>0} {
-            # found includer
-            set line [string range $line $pos end]
-            set rest [string range $line [string length $includer] end]
-            set start [string first "\"" $rest]
-            set end [string first "\"" $rest $start+1]
-            if {$start==-1} {
-                set start [string first "<" $rest]
-                set end [string first ">" $rest $start+1]
-            }
-            set filename [string trim [string range $rest $start+1 $end-1]]
-            if {$filename==""} {
-                continue
-            }
-            if {[lsearch $done $filename]==-1} {
-                while {[string range $filename 0 2] eq "../"} {
-                    set filename [string range $filename 3 end]
-                }
-                #puts "Searching ...$filename..."
-                #update
-                set undone 1
-                foreach path $includepath {
-                    if {[file exists [file join $path $filename]]} {
-                        set undone 0
-                        lappend done $filename
-                        lappend usedpath $path
-                        if {[file tail $filename]!=$filename} {
-                            #lappend done [file tail $filename]
-                            lappend usedpath [file join $path [file dir $filename]]
-                            #puts "Found $filename (adding [file join $path [file dir $filename]] and [file tail $filename])"
-                        }
-                        set fp [open [file join $path $filename]]
-                        set codenew [read $fp]
-                        close $fp
-                        #puts "found [file join $path $filename]"
-                        incr cinc
-                        set usedpath [analyse_codeincludes $filename $codenew $includepath $done $usedpath]
-                    } 
-                }
-                if {$undone>0} {
-                    #puts "Not found include  $fromfile -> $filename";
-                    lappend includes_missing $fromfile $filename
-                    lappend done $filename
-                }
-            }
-        }
-    }
-    return [lsort -unique $usedpath]
-}
-
-proc ::tcc4tcl::____makefileglob {includepath {filelist {}} {subdirs 1}} {
-    # create a filelist withh every file in every subpath as a lookup table
-    foreach path $includepath {
-        #puts "Searching $path"
-        set files [glob -tails -nocomplain -directory $path *.{h,c}]
-        foreach file $files {
-            lappend filelist $file $path
-        }
-        if {$subdirs>0} {
-            set subpaths [glob -nocomplain -directory $path -types d *]
-            set filelist [::tcc4tcl::makefileglob $subpaths $filelist $subdirs]
-        }
-    }
-    return $filelist
-}
-
-proc ::tcc4tcl::____commonsubdir {d1 d2} {
-    # returns a list of three
-    # common dirpath
-    # rest of dir1
-    # rest of dir2
-    
-    set d1 [split [string map {\\ /} $d1] /]
-    set d2 [split [string map {\\ /} $d2] /]
-    set l1 [llength $d1]
-    set l2 [llength $d2]
-    if {$l1>$l2} {
-        # swap d1 d2
-        set d $d1
-        set d1 $d2
-        set d2 $d
-        set l1 $l2
-    }
-    set outlist {}
-    for {set i 0} {$i< $l1} {incr i} {
-        if {[lindex $d1 $i]==[lindex $d2 $i]} {
-            lappend outlist [lindex $d1 $i]
-        } else {
-            break;
-        }
-    }
-    set rest1 [lrange $d1 $i end]
-    set rest2 [lrange $d2 $i end]
-        
-    return [list [join $outlist /]/ [join $rest1 /] [join $rest2 /]]
-}
-
-
-
-

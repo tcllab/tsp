@@ -13,6 +13,7 @@
 # 
 ##############################################################################
 
+package require tcc4tcl
 source [file join [file dirname [info script]] tcc4tcl_helper.tcl]
 
 
@@ -39,7 +40,7 @@ namespace eval ::tsp {
     variable COMPILE_DIRECTIVES ""
     
     # give name of save tcl source here, otherwise we use __lastsaved__.tcl
-    variable ACTSOURCE "__lastsaved__.tcl"
+    variable ACTSOURCE ""
 }
 
 proc ::tsp::hook_proc {} {
@@ -89,8 +90,6 @@ proc ::tsp::init_package {packagename {packagenamespace ""} {packageversion 1.0}
     set ::tsp::PACKAGE_PROCS ""
     set ::tsp::PACKAGE_INIT_PROC 0
     set ::tsp::TCL_PROCS ""
-    #if {$::tsp::PACKAGE_HEADER eq ""} {
-        # $::tsp::PACKAGE_HEADER gets include from tcc4tcl handle later
     set ::tsp::PACKAGE_HEADER \
         {
 /* START OF PACKAGE_HEADER */
@@ -100,19 +99,8 @@ proc ::tsp::init_package {packagename {packagenamespace ""} {packageversion 1.0}
 #include "TSP_cmd.c"
 #include "TSP_func.c"
 #include "TSP_util.c"
-
-/* for tcc to work we need some constants defined */
-#define __i386__ 1
-#if defined(__i386__)
-// FPU control word for rounding to nearest mode
-unsigned short __tcc_fpu_control = 0x137f;
-// FPU control word for round to zero mode for int conversion
-unsigned short __tcc_int_fpu_control = 0x137f | 0x0c00;
-#endif
-
 /* END OF PACKAGE_HEADER */
     }
-    #}
     
     $::tsp::TCC_HANDLE add_include_path "$::tsp::HOME_DIR/native/clang/"
     $::tsp::TCC_HANDLE add_include_path $packagename
@@ -157,13 +145,13 @@ proc ::tsp::finalize_package {{packagedir ""} {compiler none}} {
             set ::tsp::COMPILE_DIRECTIVES [::tcc4tcl::write_packagecode $::tsp::TCC_HANDLE $::tsp::PACKAGE_NAME $tsp::PACKAGE_DIR $::tsp::PACKAGE_VERSION $::tsp::TCL_VERSION]
         }
     }
-    # list with four commandlines, tcc_compile, gcc_compile, cross_compile, lin64_compile
     
     ::tsp::write_pkgAltTcl $::tsp::PACKAGE_NAME
     ::tsp::write_pkgIndex $::tsp::PACKAGE_NAME
     
-    # copy source to package... if already in place, rename
-    if {[file exist $::tsp::ACTSOURCE]} {
+    # if a source file is given
+    # copy source to packagedir... if already in place, rename
+    if {($::tsp::ACTSOURCE ne "")&&[file exist $::tsp::ACTSOURCE]} {
         set t [clock format [clock seconds] -format "%Y-%m-%d_%H-%M-%S"]
         set srcname "${::tsp::PACKAGE_NAME}_tsp_${t}.tcl"
         set srcname [file join $tsp::PACKAGE_DIR $srcname]
@@ -329,9 +317,6 @@ proc ::tsp::test_altpackage {packagename {callcmd ""}} {
         set result [$ip eval source [file join $tsp::PACKAGE_DIR "${packagename}.tclprocs.tcl"]]
         puts "Loading TCL package... $packagename.puretcl.tcl"
         set result [$ip eval source [file join $tsp::PACKAGE_DIR "${packagename}.puretcl.tcl"]]
-
-        #$ip eval  ${packagename}_pkgInit
-        
         if {$callcmd ne ""} {
             puts "Calling $callcmd"
             catch {
@@ -367,9 +352,8 @@ proc ::tsp::rewrite_procnamespace {} {
     set nsprocs ""
     foreach {procname cprocname} $state(procs) {
         if {[lsearch $::tsp::PACKAGE_PROCS [namespace tail $procname]]<0} {
-            # pure c implemented... probs ahead :-)
+            # pure c implemented... there will be no valid TCL representation
             set procdef [list $procname "args" [list puts "Not implemented \"$procname\""]]
-            #puts "found pure c proc $procname, replacing dummy $procdef"
             lappend ::tsp::PACKAGE_PROCS $procname $procdef
             set cdef [dict get $state(procdefs) $procname]
             lassign $cdef cprocname rtype cprocargs
@@ -466,13 +450,11 @@ proc ::tsp::write_pkgIndex {packagename} {
     
     set pkgloadext  "proc ${packagename}_loadext {dir} {\n"
     foreach extdll [lsort -unique $::tsp::LOAD_DLLS] {
-        #
         append pkgloadext "     if {\[catch {load \[file join \$dir $extdll\[info sharedlibextension\]\]} err\]} {\n"
         append pkgloadext "         puts \"Error loading $extdll \$err\"\n"
         append pkgloadext "     }\n"
     }
     foreach exttcl [lsort -unique $::tsp::LOAD_TCLS] {
-        #
         append pkgloadext "     if {\[catch {source  \[file join \$dir ${exttcl}.tcl\]} err\]} {\n" 
         append pkgloadext "         puts \"Error loading $exttcl \$err\"\n"
         append pkgloadext "     }\n"
@@ -519,7 +501,6 @@ proc ::tsp::write_pkgAltTcl {packagename} {
     }
     close $fd
     
-    #::tsp::splice_src  "$::tsp::ACTSOURCE"
     set filename [file join $tsp::PACKAGE_DIR "${packagename}.puretcl.tcl"]
     set fd [open $filename w]
     puts $fd "#  TSP Pure TCL procs for loadlib complemenary procs"
@@ -601,7 +582,6 @@ proc ::tsp::compile_package {packagename {compiler tccwin32}} {
     }
     if {$tsp::PACKAGE_DIR eq ""} {
         puts "No packagedir given, searching in $packagename/$packagename.c"
-        #$tsp::PACKAGE_DIR 
         set filename [file join $tsp::PACKAGE_DIR "$packagename.c"]
         if {![file exists $filename]} {
             set tsp::PACKAGE_DIR $packagename
@@ -751,32 +731,4 @@ proc version:cmdDel {txt line} {
 }
 
 #----------------------------------- Code to remove -----------------------------------------
-
-proc ::tsp::____splice_src {filename} {
-    if {![file exists $filename]} {
-        puts "ERROR: $filename source not found"
-        return -1
-    }
-
-    set f [open "$filename"]
-    set data [read $f]
-    close $f
-    set ::tsp::TCL_PROCS ""
-    foreach {dummy procName} [regexp -all -inline -line {^[\s:]*proc (\S+)} $data] {
-        catch {
-            set procargs ""
-            set _procargs [info args $procName]
-            foreach _procarg $_procargs {
-                if {[info default $procName $_procarg def]>0} {
-                    set _procarg "$_procarg \"$def\""
-                } 
-                lappend procargs $_procarg
-            }
-            set procbody [info body $procName]
-            lappend ::tsp::TCL_PROCS  [list $procName $procargs $procbody]
-        }
-    }
-}
-
-
 
