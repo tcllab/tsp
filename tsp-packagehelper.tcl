@@ -41,14 +41,22 @@ namespace eval ::tsp {
     
     # give name of save tcl source here, otherwise we use __lastsaved__.tcl
     variable ACTSOURCE ""
+    
+    variable _HOOK_LEVEL 0
 }
 
-proc ::tsp::hook_proc {} {
+proc ::tsp::hook_proc {level} {
     # we hook the proc construct to get information about package defined procs
+    variable _HOOK_LEVEL
+    set _HOOK_LEVEL $level
     if {[info command ::__proc] eq ""} {
         rename ::proc ::__proc
         ::__proc ::proc {procName procargs procbody} {
-            lappend ::tsp::TCL_PROCS  [list $procName $procargs $procbody]
+            #puts "script [info script] [info level] [info frame]"
+            if {([info script] eq "")&&([info level]==$::tsp::_HOOK_LEVEL)} {
+                lappend ::tsp::TCL_PROCS  [list $procName $procargs $procbody]
+                #puts "Appending $procName"
+            }
             if {[catch {uplevel 0 ::__proc [list $procName $procargs $procbody]} err]} {
                 rename ::proc ""
                 rename ::__proc ::proc
@@ -86,7 +94,7 @@ proc ::tsp::init_package {packagename {packagenamespace ""} {packageversion 1.0}
     
     catch { unset ::tsp::TCC_HANDLE}
     set ::tsp::TCC_HANDLE [tcc4tcl::new]
-
+    set tcc4tcl::moduleName $packagename
     set ::tsp::PACKAGE_PROCS ""
     set ::tsp::PACKAGE_INIT_PROC 0
     set ::tsp::TCL_PROCS ""
@@ -112,7 +120,7 @@ proc ::tsp::init_package {packagename {packagenamespace ""} {packageversion 1.0}
     set ::tsp::LOAD_DLLS "" 
     set ::tsp::EXTERNAL_DLLS "" 
     
-    ::tsp::hook_proc
+    ::tsp::hook_proc [info level]
 }
 
 proc ::tsp::finalize_package {{packagedir ""} {compiler none}} {
@@ -402,7 +410,7 @@ proc ::tsp::write_pkgIndex {packagename} {
     catch {set tclpr $::tsp::TCL_PROCS}
     foreach tcldef $tclpr {
         lassign $tcldef cproc cvars cbody
-        puts $fd "# $cproc $cvars"
+        puts $fd [string map {\n "."} "# $cproc $cvars"]
     }
     set handle $::tsp::TCC_HANDLE
     set loadextlibs "proc ${packagename}_loadextdlls {dir} {\ncatch {\n"
@@ -573,6 +581,7 @@ proc ::tsp::compile_package {packagename {compiler tccwin32}} {
     if {$ctype==99} {
         puts "Debug Source"
         puts [$::tsp::TCC_HANDLE code]
+        puts "#--End of code---------------------"
         return 1
     }
 
