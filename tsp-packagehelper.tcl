@@ -52,10 +52,8 @@ proc ::tsp::hook_proc {level} {
     if {[info command ::__proc] eq ""} {
         rename ::proc ::__proc
         ::__proc ::proc {procName procargs procbody} {
-            #puts "script [info script] [info level] [info frame]"
             if {([info script] eq "")&&([info level]==$::tsp::_HOOK_LEVEL)} {
                 lappend ::tsp::TCL_PROCS  [list $procName $procargs $procbody]
-                #puts "Appending $procName"
             }
             if {[catch {uplevel 0 ::__proc [list $procName $procargs $procbody]} err]} {
                 rename ::proc ""
@@ -94,7 +92,7 @@ proc ::tsp::init_package {packagename {packagenamespace ""} {packageversion 1.0}
     
     catch { unset ::tsp::TCC_HANDLE}
     set ::tsp::TCC_HANDLE [tcc4tcl::new]
-    set tcc4tcl::moduleName $packagename
+
     set ::tsp::PACKAGE_PROCS ""
     set ::tsp::PACKAGE_INIT_PROC 0
     set ::tsp::TCL_PROCS ""
@@ -581,7 +579,6 @@ proc ::tsp::compile_package {packagename {compiler tccwin32}} {
     if {$ctype==99} {
         puts "Debug Source"
         puts [$::tsp::TCC_HANDLE code]
-        puts "#--End of code---------------------"
         return 1
     }
 
