@@ -567,13 +567,14 @@ proc ::tsp::lang_assign_empty_zero {var type} {
 #
 proc ::tsp::lang_assign_var_array_idxvar {targetObj arrVar idxVar errMsg} {
     append result "/* ::tsp::lang_assign_var_array_idxvar */\n"
-
+    append result "[::tsp::lang_safe_release $targetObj]"
     append result "$targetObj = Tcl_ObjGetVar2(interp, $arrVar, $idxVar, TCL_LEAVE_ERR_MSG);\n"
     append result "if ($targetObj == NULL) \{\n"
     append result "    /* Tcl_AppendResult(interp, [::tsp::lang_quote_string $errMsg], (char *) NULL);*/\n"
     append result "    *rc = TCL_ERROR;\n"
     append result "    ERROR_EXIT;\n"
     append result "\}\n"
+    append result "[::tsp::lang_preserve $targetObj]"
     return $result
 }
 
@@ -584,15 +585,14 @@ proc ::tsp::lang_assign_var_array_idxvar {targetObj arrVar idxVar errMsg} {
 #
 proc ::tsp::lang_assign_var_array_idxtext {targetObj arrVar idxTxtVar errMsg} {
     append result "/* ::tsp::lang_array_get_array_idxtext */\n"
-
+    append result "[::tsp::lang_safe_release $targetObj]"
     append result "$targetObj = Tcl_ObjGetVar2(interp, $arrVar, $idxTxtVar, TCL_LEAVE_ERR_MSG);\n"
     append result "if ($targetObj == NULL) \{\n"
     append result "    /* Tcl_AppendResult(interp, [::tsp::lang_quote_string $errMsg], (char *) NULL);*/\n"
     append result "    *rc = TCL_ERROR;\n"
     append result "    ERROR_EXIT;\n"
     append result "\}\n"
-    return $result
-
+    append result "[::tsp::lang_preserve $targetObj]"
     return $result
 }
 

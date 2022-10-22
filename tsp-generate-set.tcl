@@ -671,17 +671,105 @@ proc ::tsp::gen_assign_var_string_interpolated_string {compUnitDict targetVarNam
                 set sourceCmdRange [lindex $component 2]
                 lassign [::tsp::parse_nestedbody compUnit $sourceCmdRange] sourceType sourceRhsVar sourceCode
     
-	        if {$sourceCode eq ""} {
-		    ::tsp::addError compUnit "assignment from nested command: no code generated: target \"$targetVarName\" "
-		    return [list void "" ""]
+                if {$sourceCode eq ""} {
+                    ::tsp::addError compUnit "assignment from nested command: no code generated: target \"$targetVarName\" "
+                    return [list void "" ""]
                 }
-    
-	        if {$sourceType eq "void"} {
-		    ::tsp::addError compUnit "void assignment from nested command: target \"$targetVarName\""
-		    return [list void "" ""]
-	        }
+        
+                if {$sourceType eq "void"} {
+                    ::tsp::addError compUnit "void assignment from nested command: target \"$targetVarName\""
+                    return [list void "" ""]
+                }
                 append code $sourceCode
                 append code [::tsp::gen_assign_scalar_scalar compUnit $tmp string $sourceRhsVar $sourceType ]
+            }
+            text_array_idxvar - array_idxvar {
+                 append code "//Parsing Array $compType in $component of $sourceComponents\n"
+                 #::tsp::addWarning compUnit "$compType not implemented $component $sourceComponents"
+                 #append code "// Parsing $component in $sourceComponents\n"
+				set tmp_s [::tsp::get_tmpvar compUnit string]
+				set doreturn 0
+
+                # assignment from native variable or var, possible type coersion
+                set sourceVarName [lindex $component 2]
+                #append code "// assignment  |$sourceVarName| to $tmp_s\n"
+                set sourceType [::tsp::getVarType compUnit $sourceVarName]
+                if {$sourceType eq "undefined"} {
+                    ::tsp::addError compUnit "set command arg 2 interpolated string variable not defined: \"$sourceVarName\""
+                    return [list ""]
+                }
+                append code [::tsp::gen_assign_scalar_scalar compUnit $tmp_s string $sourceVarName $sourceType]
+
+				if {($compType=="array_idxvar")} {
+					#::tsp::addWarning compUnit "set arg 2 interpolated string cannot contain $compType as $component in $sourceComponents, only commands, text, backslash, or scalar variables"
+					set tmp_a [::tsp::get_tmpvar compUnit var tmp_array]
+					set tmp_v [::tsp::get_tmpvar compUnit var tmp_idx]
+					append code [::tsp::lang_assign_var_string $tmp_v $tmp_s]
+					# append code "// Convert array |$tmp_a| to $tmp\n"
+                     append code [::tsp::lang_assign_var_array_idxvar $tmp_a [::tsp::get_constvar [::tsp::getConstant compUnit [lindex $component 1]]] $tmp_v "Error loading Array Text"]
+					append code [::tsp::lang_convert_string_var $tmp $tmp_a]
+				} else {
+				    set sourceText [lindex $sourceComponents 3]
+				    if {$sourceText eq ""} {
+				        append code "//Missing source in $sourceComponents\n"
+				        continue
+				    } else {
+                        #::tsp::addWarning compUnit "set arg 2 interpolated string should not contain $compType as $sourceText in $sourceComponents, only commands, text, backslash, or scalar variables\n"
+                        set newsource "[lindex $sourceComponents 1]("
+                        #append code "// Convert |$newsource|  to $tmp via $tmp_s\n"
+                        append code [::tsp::lang_assign_string_const $tmp $newsource]
+                        append code [::tsp::lang_append_string $tmp $tmp_s]
+                        append code "Tcl_DStringAppend($tmp,\")\",-1);\n"
+                        set doreturn 1
+                    }
+				}
+				if {$targetType eq "string"} {
+					#append code "// Append string |$tmp|\n"
+					append code [::tsp::lang_append_string $targetPre$targetVarName $tmp]
+				} elseif {$targetType eq "var"} {
+					#append code "// Append var |$tmp|\n"
+					append code [::tsp::lang_assign_var_string $targetVarName $tmp]
+				}
+				#append code [::tsp::lang_assign_empty_zero $tmp string]
+				if {$doreturn>0} {
+				    append code "// exiting\n"
+					return $code
+				}
+            }
+            text_array_idxtext - array_idxtext {
+                 append code "//Parsing Array $compType in $component of $sourceComponents\n"
+				set tmp_s [::tsp::get_tmpvar compUnit string]
+				set doreturn 0
+				if {($compType=="array_idxtext")} {
+					#::tsp::addWarning compUnit "set arg 2 interpolated string cannot contain $compType as $component in $sourceComponents, only commands, text, backslash, or scalar variables"
+					set tmp_a [::tsp::get_tmpvar compUnit var tmp_array]
+					#append code "// Convert array |$tmp_a| to $tmp\n"
+					append code [::tsp::lang_assign_var_array_idxvar $tmp_a [::tsp::get_constvar [::tsp::getConstant compUnit [lindex $component 1]]] [::tsp::get_constvar [::tsp::getConstant compUnit [lindex $component 2]]] "Error loading Array Text"]
+					append code [::tsp::lang_convert_string_var $tmp $tmp_a]
+				} else {
+				    set sourceText [lindex $sourceComponents 3]
+				    if {$sourceText eq ""} {
+				        append code "//Missing source in $sourceComponents\n"
+				        continue
+				    } else {
+                        #::tsp::addWarning compUnit "set arg 2 interpolated string should not contain $compType as $sourceText in $sourceComponents, only commands, text, backslash, or scalar variables\n"
+                        #append code "// Convert |$sourceText| to $tmp\n"
+                        append code [::tsp::lang_assign_string_const $tmp $sourceText]
+                        set doreturn 1
+                    }
+				}
+				if {$targetType eq "string"} {
+					#append code "// Append string |$tmp|\n"
+					append code [::tsp::lang_append_string $targetPre$targetVarName $tmp]
+				} elseif {$targetType eq "var"} {
+					#append code "// Append var |$tmp|\n"
+					append code [::tsp::lang_assign_var_string $targetVarName $tmp]
+				}
+				#append code [::tsp::lang_assign_empty_zero $tmp string]
+				if {$doreturn>0} {
+				    append code "// exiting\n"
+					return $code
+				}
             }
             default {
                 ::tsp::addError compUnit "set arg 2 interpolated string cannot contain $compType, only commands, text, backslash, or scalar variables"
