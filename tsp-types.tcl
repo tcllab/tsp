@@ -148,6 +148,11 @@ proc ::tsp::parse_pragma {compUnitDict comments} {
                 }
             }
             
+            "tsp::inlinec*" {
+                set inlinec [string map {"tsp::inlinec " ""} $prag]
+                dict lappend compUnit "immediateCode" "/* $prag */" $inlinec
+            }
+            
         }
 
         dict incr compUnit lineNum 
@@ -161,7 +166,6 @@ proc ::tsp::parse_pragma {compUnitDict comments} {
 
 proc ::tsp::parse_procDefs {compUnitDict def} {
     upvar $compUnitDict compUnit
-
     if {[dict get $compUnit returns] ne ""} {
         ::tsp::addError compUnit "::tsp::procdef: attempt to redefine proc: $def"
         return
@@ -169,7 +173,11 @@ proc ::tsp::parse_procDefs {compUnitDict def} {
     
     set validReturnTypes $::tsp::RETURN_TYPES
     set validArgTypes $::tsp::VAR_TYPES
-
+    
+    # patch for native proc withou pushcallframe/popcallframe
+    dict set compUnit isNative 1
+    set unsupportedTypes "array"
+    
     set len [llength $def]
     if {$len < 2} {
         ::tsp::addError compUnit "::tsp::procdef: invalid proc definition, missing return type"
@@ -184,6 +192,13 @@ proc ::tsp::parse_procDefs {compUnitDict def} {
         ::tsp::addError compUnit "::tsp::procdef: invalid return type: $type"
         return
     }
+    set unsupported [lsearch $unsupportedTypes $type]
+    if {$unsupported>-1} {
+        ::tsp::addWarning compUnit "::tsp::procdef: not a native type $type"
+        dict set compUnit isNative 0
+        return
+    }
+    
     dict set compUnit returns $type
     set argTypesList [list]
     set procArgs [dict get $compUnit args]
@@ -229,6 +244,12 @@ proc ::tsp::parse_procDefs {compUnitDict def} {
                 ::tsp::addError compUnit "::tsp::procdef: proc arg is not valid identifier: $arg"
             }
             set type [lindex $defArgs $i]
+            set unsupported [lsearch $unsupportedTypes $type]
+            if {$unsupported>-1} {
+                ::tsp::addWarning compUnit "::tsp::procdef: not a native type $type"
+                dict set compUnit isNative 0
+                return
+            }
             set found [lsearch $validArgTypes $type]
             if {$found < 0} {
                 ::tsp::addError compUnit "::tsp::procdef: invalid proc definition: arg $arg type \"$type\" is invalid"
@@ -240,7 +261,7 @@ proc ::tsp::parse_procDefs {compUnitDict def} {
                         ::tsp::addError compUnit "::tsp::procdef: var already defined: arg \"$arg\" as type \"$previous\""
                     }
                 } else {
-		    ::tsp::setVarType compUnit $arg $type
+                    ::tsp::setVarType compUnit $arg $type
                     lappend argTypesList $type
                 }
             }
@@ -271,6 +292,12 @@ proc ::tsp::parse_varDefs {compUnitDict def} {
         ::tsp::addError compUnit "::tsp::def: invalid var type: \"$type\""
         return
     }
+    set unsupported [lsearch "array" $type]
+    if {$unsupported>-1} {
+        ::tsp::addWarning compUnit "::tsp::procdef: not a native type $type"
+        dict set compUnit isNative 0
+        return
+    }
 
     set var_list [lrange $def 1 end]
     foreach var $var_list {
@@ -298,7 +325,6 @@ proc ::tsp::parse_varDefs {compUnitDict def} {
 
 proc ::tsp::parse_volatileDefs {compUnitDict def} {
     upvar $compUnitDict compUnit
-
     set vars [lrange $def 1 end]
     foreach var $vars {
         set isValid [::tsp::isValidIdent $var]
@@ -364,8 +390,16 @@ proc ::tsp::isProcArg {compUnitDict var} {
 # 
 proc ::tsp::isValidIdent {id} {
     #tsp::proc returns: bool args: string id 
-    
-    return [regexp {^[a-zA-Z_][a-zA-Z0-9_]*$} $id]
+    set ns [string trim [namespace qualifiers $id] ":"]
+    set vn [namespace tail $id]
+    set r [regexp {^[a-zA-Z_][a-zA-Z0-9_]*$} $vn]
+    if {$ns eq $::tsp::PACKAGE_NAMESPACE} {
+        return $r
+    }
+    if {$ns eq ""} {
+        return $r
+    }
+    return 0
 }
 
 
@@ -550,6 +584,9 @@ proc ::tsp::is_prefixedvar {name} {
 # user variables
 
 proc ::tsp::var_prefix {name} {
+    if {[lsearch $tsp::LOCKED_WINVARS $name]>-1} {
+        return ___
+    }
     if {[::tsp::is_tmpvar $name] || [::tsp::is_prefixedvar $name]} {
         return ""
     } else {

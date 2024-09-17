@@ -42,11 +42,13 @@ proc can also be specified with a single underscore **('_')**.
 a convenience for `tsp::log _`
 
 
-### `tsp::printLog` *?outfd? ?proc?*
+### `tsp::printLog` *?outfd? ?proc? ?breakeval?*
 
 `tsp::printLog` prints the compiler log.  Optional outfd specifies a writable file handle, stderr
 is the default.  Optional proc is specified, only that log is returned.  The most recent compiled
 proc can also be specified with a single underscore **('_')**.
+
+**breakeval** defaults to 1, so that TSP returns with an error, if there are any errors in transpilation.
 
 
 ## Annotations
@@ -100,7 +102,37 @@ vwait, etc.)
             include tracing on variables and the return values.  This can be useful to 
             isolate variable that may cause conversion errors.  See the Tracing section below.
 
+### `#tsp::inlinec`
+`#tsp::inlinec` defines a pure c line, that will be put into the source code directly without changes, so it is possible to e.g. call other c-procs directly (given you know the calling conventions) etc.
 
+### `#tsp::altTCL`
+`#tsp::altTCL` is put into the generated tcl code (use if compilation/loading fails), so you can give alternate TCL versions of inlineC parts
+    
+```
+
+#example
+package require tsp
+
+set handle $::tsp::TCC_HANDLE
+$handle cproc t1 {int i} double {;#define a simple c procedure here -- it will be compile as c_t1 later
+    return i*0.5;
+}
+tsp::proc test {} {
+    #tsp::procdef double
+    #tsp::int i
+    #tsp::double l k
+    set k 1.0
+    for {set i 0} {$i<100000} {incr i} {;# $i will be decorated as __i in TSP, $l as __l and so on
+        #tsp::inlinec __l = c_t1(__i);
+        #tsp::altTCL set l [t1 $i]
+        #tsp::inlinec __k = __k+sqrt(__l*__l*0.33);
+        #tsp::altTCL set k [expr {$k+sqrt($l*$l*0.33)}]
+    }
+    return $k
+}
+
+
+```
 
 ## Trace compile type
 

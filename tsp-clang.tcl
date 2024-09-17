@@ -1,23 +1,10 @@
 ##################################################################
 
 # language specific procs - c
-#package require tcc4tcl
-package require critcl
+package require tcc4tcl
 
 # FIXME - strings and string command impls should use Tcl_UniChar arrays, not
 #         UTF-8 strings.  
-
-
-# FIXME
-# for testing, set cache dir and clear cache once
-# this is ordinarily in ::tsp::lang_compile
-::critcl::cache ./.critcl
-::critcl::clean_cache
-
-
-# force critcl to load so we can capture the original PkgInit bodhy
-catch {::critcl::cproc}
-variable ::tsp::critcl_pkginit [info body ::critcl::PkgInit]
 
 
 # BUILTIN_TCL_COMMANDS
@@ -32,7 +19,7 @@ variable ::tsp::critcl_pkginit [info body ::critcl::PkgInit]
 # SPILL_LOAD_COMMANDS
 # commands that specify variables by name, requiring spill/load
 # each element is a list of: command subcommand-or-option start end vartype spill-load-type.  
-# if variable naem is not previously defined, it will be defined as the first type
+# if variable name is not previously defined, it will be defined as the first type
 # listed in vartype.  
 # note: this list only for commands not otherwise compiled, and also not for array
 # variable names, since they are always kept in the interp ("file stat"), 
@@ -64,7 +51,7 @@ namespace eval ::tsp {
     ]
 
     variable SPILL_LOAD_COMMANDS [list                               \
-	[list binary     scan       4  end    var      load]         \
+	    [list binary     scan       4  end    var      load]         \
         [list dict       append     2  2      var      spill/load]   \
         [list dict       incr       2  2      var      spill/load]   \
         [list dict       lappend    2  2      var      spill/load]   \
@@ -353,7 +340,7 @@ proc ::tsp::lang_convert_double_var {targetVarName sourceVarName errMsg} {
 proc ::tsp::lang_convert_string_boolean {targetVarName sourceVarName {errMsg ""}} {
     append result "/* ::tsp::lang_convert_string_boolean */\n"
     append result "Tcl_DStringSetLength($targetVarName,0);\n"
-    append result "Tcl_DStringAppend($targetVarName, ($sourceVarName ? : \"1\" : \"0\"), -1);\n"
+    append result "Tcl_DStringAppend($targetVarName, ($sourceVarName ? \"1\" : \"0\"), -1);\n"
     return $result
 }
 
@@ -415,7 +402,7 @@ proc ::tsp::lang_convert_var_var {targetVarName sourceVarName {errMsg ""}} {
 # NOTE - return value must be used immediately
 #
 proc ::tsp::lang_get_string_boolean {sourceVarName} {
-    return "$sourceVarName ? : \"1\" : \"0\""
+    return "$sourceVarName ? \"1\" : \"0\""
 }
 
 ##############################################
@@ -449,6 +436,15 @@ proc ::tsp::lang_get_string_string {sourceVarName} {
 proc ::tsp::lang_get_string_var {sourceVarName} {
     return "TSP_Util_lang_get_string_var($sourceVarName)"
 }
+
+##############################################
+# get a tcl_dstring from a char value
+# NOTE - value is place into a tcl_dstring from ::tsp::get_tmpvar
+#
+proc ::tsp::lang_get_string_char {char strVar} {
+    return "TSP_UTIL_dstring_from_char(\"$char\",$strVar)"
+}
+
 
 
 ##############################################
@@ -525,7 +521,7 @@ proc ::tsp::lang_int_const {n} {
 # appends double designation for java
 proc ::tsp::lang_double_const {n} {
     if {[string is wideinteger $n] || [string is double $n]} {
-        append n d
+        #append n d
     }
     return $n
 }
@@ -571,13 +567,14 @@ proc ::tsp::lang_assign_empty_zero {var type} {
 #
 proc ::tsp::lang_assign_var_array_idxvar {targetObj arrVar idxVar errMsg} {
     append result "/* ::tsp::lang_assign_var_array_idxvar */\n"
-
+    append result "[::tsp::lang_safe_release $targetObj]"
     append result "$targetObj = Tcl_ObjGetVar2(interp, $arrVar, $idxVar, TCL_LEAVE_ERR_MSG);\n"
     append result "if ($targetObj == NULL) \{\n"
     append result "    /* Tcl_AppendResult(interp, [::tsp::lang_quote_string $errMsg], (char *) NULL);*/\n"
     append result "    *rc = TCL_ERROR;\n"
     append result "    ERROR_EXIT;\n"
     append result "\}\n"
+    append result "[::tsp::lang_preserve $targetObj]"
     return $result
 }
 
@@ -588,15 +585,14 @@ proc ::tsp::lang_assign_var_array_idxvar {targetObj arrVar idxVar errMsg} {
 #
 proc ::tsp::lang_assign_var_array_idxtext {targetObj arrVar idxTxtVar errMsg} {
     append result "/* ::tsp::lang_array_get_array_idxtext */\n"
-
+    append result "[::tsp::lang_safe_release $targetObj]"
     append result "$targetObj = Tcl_ObjGetVar2(interp, $arrVar, $idxTxtVar, TCL_LEAVE_ERR_MSG);\n"
     append result "if ($targetObj == NULL) \{\n"
     append result "    /* Tcl_AppendResult(interp, [::tsp::lang_quote_string $errMsg], (char *) NULL);*/\n"
     append result "    *rc = TCL_ERROR;\n"
     append result "    ERROR_EXIT;\n"
     append result "\}\n"
-    return $result
-
+    append result "[::tsp::lang_preserve $targetObj]"
     return $result
 }
 
@@ -897,6 +893,10 @@ proc ::tsp::lang_create_compilable {compUnitDict code} {
     # create a list of proc argument names, prepended with __
     set procArgs ""
     foreach arg [dict get $compUnit args] {
+        if {[lsearch $tsp::LOCKED_WINVARS $arg]>-1} {
+            ::tsp::addWarning compUnit " $arg is protected, rewriting to _$arg"
+            set arg _$arg
+        }
         lappend procArgs __$arg
     }
 
@@ -908,7 +908,6 @@ proc ::tsp::lang_create_compilable {compUnitDict code} {
     if {[string length $nativeArgs]} {
         set nativeArgs ", $nativeArgs"
     }
-
 
     set nativeTypedArgs ""
     set intfProcArgs ""
@@ -1027,7 +1026,16 @@ proc ::tsp::lang_create_compilable {compUnitDict code} {
             set returnInit ""
             set returnCleanup $missing_return
         } 
-        void -
+        void {
+            set returnVar ""
+            set returnValueCmd ""
+            set returnVarDecl ""
+            set returnVarAssignment ""
+            set intfReturnSetResult ""
+            set returnAlloc ""
+            set returnInit ""
+            set returnCleanup " goto normal_exit;"
+        }
         default {
             set returnVar ""
             set returnValueCmd ""
@@ -1043,6 +1051,10 @@ proc ::tsp::lang_create_compilable {compUnitDict code} {
     # create proc function vars and cleanup code (for vars and string)
     foreach {var} [lsort [dict keys [dict get $compUnit vars]]] {
         set type [::tsp::getVarType compUnit $var]
+        if {[lsearch $tsp::LOCKED_WINVARS $var]>-1} {
+            ::tsp::addWarning compUnit " $var is protected, rewriting to _$var"
+            set var _$var
+        }
         if {[lsearch $procArgs __$var] >= 0} {
             continue
         }
@@ -1084,7 +1096,9 @@ proc ::tsp::lang_create_compilable {compUnitDict code} {
         append argObjvArrays "Tcl_Obj** foreachObjv_0 = NULL;\n"
     }
 
-    append cleanup_defs "#define CLEANUP " \ \n
+    
+    set cleanup_defs ""
+    append cleanup_defs "#define CLEANUP "  \ \n
     append cleanup_defs [::tsp::indent compUnit [::tsp::lang_spill_vars compUnit [dict get $compUnit finalSpill]] 1 \n]
     append cleanup_defs [::tsp::indent compUnit [::tsp::lang_safe_release _tmpVar_cmdResultObj] 1 \n]
     append cleanup_defs [::tsp::indent compUnit $procVarsCleanup 1 \n]
@@ -1092,7 +1106,7 @@ proc ::tsp::lang_create_compilable {compUnitDict code} {
 
     set arg_cleanup_defs ""
     if {[string length $declStringsCleanup]} {
-        append arg_cleanup_defs "#define CLEANUP " \ \n
+        append arg_cleanup_defs "#define CLEANUP "  \ \n
         append arg_cleanup_defs [::tsp::indent compUnit $declStringsCleanup 1 \n]
     } else {
         append arg_cleanup_defs "#define CLEANUP \n"
@@ -1101,8 +1115,24 @@ proc ::tsp::lang_create_compilable {compUnitDict code} {
     regsub "^\[ \n\]*" $cleanup_defs {} cleanup_defs
     regsub -all {\n *$} $cleanup_defs "\n" cleanup_defs
     regsub -all {\n} $cleanup_defs "\\\n" cleanup_defs
-    append cleanup_defs "    Tcl_PopCallFrame(interp); \\\n" 
-    append cleanup_defs "    ckfree((char*) frame) \n"
+    
+    # patch for native compiled routines, that don't need pushcallframe/popcallframe
+    #   /* Tcl_CallFrame is dangerous since it is buried deep in the tcl_internals stubs table */
+    #   /* could easily break in future TCL_VERSION versions */
+    #   /* Functional against 8.6.6 with no guarantee */
+    
+    set popcf ""
+    set pushcf "/* Native proc, no external variables used, dropping PushCallframe/PopCallframe */"
+    
+    if {[dict get $compUnit isNative]==0} { 
+        set pushcf {
+            frame = (Tcl_CallFrame*) ckalloc(sizeof(Tcl_CallFrame));
+            Tcl_PushCallFrame(interp, frame, Tcl_GetGlobalNamespace(interp), 1);
+        }
+        set popcf "    Tcl_PopCallFrame(interp); \\\n    ckfree((char*) frame) \n"
+    } 
+
+    append cleanup_defs $popcf
 
     regsub "^\[ \n\]*" $arg_cleanup_defs {} arg_cleanup_defs
     regsub -all {\n *$} $arg_cleanup_defs "\n" arg_cleanup_defs
@@ -1123,20 +1153,25 @@ proc ::tsp::lang_create_compilable {compUnitDict code} {
     set direct_tsp_decls ""
     set direct_tsp_init  ""
     foreach cmdName [lsort [dict get $compUnit direct]] {
-
         if {$cmdName eq [dict get $compUnit name]} { 
             set proc_info  [list [dict get $compUnit returns] [dict get $compUnit argTypes] {} ]
         } else {
             set proc_info  [dict get $::tsp::COMPILED_PROCS $cmdName]
         }
         lassign $proc_info procType procArgTypes procRef
-        if {$procType ne "void"} {
+            
+        if {$procType eq "void"} {
             set procNativeType ""
         } else {
             set procNativeType "[::tsp::lang_xlate_native_type $procType] "
         }
+        if {$::tsp::PACKAGE_NAMESPACE ne ""} {
+            set nscmdName "::${::tsp::PACKAGE_NAMESPACE}::$cmdName"
+        } else {
+            set nscmdName $cmdName
+        }
         append direct_tsp_decls "static ${procNativeType}(* TSP_UserDirect_${cmdName})();\n "
-        append direct_tsp_init  "TSP_UserDirect_${cmdName} =  TSP_User_getCmd(interp, \"${cmdName}\");\n"
+        append direct_tsp_init  "TSP_UserDirect_${cmdName} =  TSP_User_getCmd(interp, \"${nscmdName}\");\n"
     }
 
     # create decls and init code for constants
@@ -1151,27 +1186,37 @@ proc ::tsp::lang_create_compilable {compUnitDict code} {
         } elseif {[::tsp::typeIsDouble $constTypes]} {
             append procConstInit "$constvar = TSP_Util_const_double((double) $const);\n"
         } else {
-            append procConstInit "$constvar = TSP_Util_const_string([::tsp::lang_quote_string $const]);\n"
+            append procConstInit "$constvar = TSP_Util_const_string([::tsp::lang_quote_string $const]);/*from create_compilable*/\n"
         }
     }
 
     # class template
+# $::tsp::HOME_DIR/native/clang/ is moved to $handle add_include_path
+# include tcl.h should be present from tcc4tcl headers
+if {$::tsp::PACKAGE_HEADER eq ""} {
+    # $::tsp::PACKAGE_HEADER gets included from tcc4tcl handle later
+    set ::tsp::PACKAGE_HEADER \
+    {
+    /* don't forget to declare includedir tsp-package/native/clang/ in the right way */
+    #include <string.h>
+    #include <tclInt.h>    
+    #include "TSP_cmd.c"
+    #include "TSP_func.c"
+    #include "TSP_util.c"
+    }
+}
 
-    set cfileTemplate1 \
+
+set cfileTemplate1 \
 {
-
-#include <tcl.h>
-
-#include "$::tsp::HOME_DIR/native/clang/TSP_cmd.c"
-#include "$::tsp::HOME_DIR/native/clang/TSP_func.c"
-#include "$::tsp::HOME_DIR/native/clang/TSP_util.c"
-
+#undef CLEANUP
+#undef RETURN_VALUE_CLEANUP
+#undef RETURN_VALUE
+#undef ERROR_EXIT
 #define ERROR_EXIT goto error_exit
 
 $cleanup_defs
-
 $return_cleanup_def
-
 $return_var_def
 
 /* 
@@ -1189,7 +1234,9 @@ TSP_UserDirect_${name}(Tcl_Interp* interp, int* rc  $nativeTypedArgs ) {
     char* str2;     
     char* exprErrMsg = NULL;
     Tcl_Obj* _tmpVar_cmdResultObj = NULL;
-    Tcl_CallFrame* frame = NULL;
+
+    Tcl_CallFrame* frame = NULL; 
+
     $returnVarDecl
     [::tsp::indent compUnit $argObjvArrays 1 \n]
     [::tsp::indent compUnit $direct_tsp_decls 1 \n]
@@ -1223,8 +1270,7 @@ TSP_UserDirect_${name}(Tcl_Interp* interp, int* rc  $nativeTypedArgs ) {
         [::tsp::indent compUnit $procConstInit 2 \n]
     }
     
-    frame = (Tcl_CallFrame*) ckalloc(sizeof(Tcl_CallFrame));
-    Tcl_PushCallFrame(interp, frame, Tcl_GetGlobalNamespace(interp), 1);
+    $pushcf
 
     *rc = TCL_OK;     
 
@@ -1257,6 +1303,7 @@ TSP_UserDirect_${name}(Tcl_Interp* interp, int* rc  $nativeTypedArgs ) {
 #undef RETURN_VALUE
 #undef ERROR_EXIT
 
+
 $arg_cleanup_defs
 #define RETURN_VALUE_CLEANUP 
 #define RETURN_VALUE 
@@ -1270,13 +1317,6 @@ $arg_cleanup_defs
 
 }
 # end of cfileTemplate1
-
-
-
-
-    # defined by critcl::ccomand
-    #   int TSP_UserCmd_${name}(ClientData clientData, Tcl_Interp* interp, int objc, Tcl_Obj *const objv\[\]) 
-
 
     set cfileTemplate2 \
 {
@@ -1323,11 +1363,6 @@ $arg_cleanup_defs
 }
 # end of cfileTemplate2
 
-    # critcl needs two pieces, one for ccode and another form ccommand, so return as a list
-
-    #puts [subst $cfileTemplate1]
-    #puts [subst $cfileTemplate2]
-
     return [list [subst $cfileTemplate1] [subst $cfileTemplate2]]
 }
 
@@ -1346,48 +1381,33 @@ proc ::tsp::lang_compile {compUnitDict code} {
     set name [dict get $compUnit name]
     variable ::tsp::cc_output 
     set ::tsp::cc_output ""
-    set results ""
+    set __result ""
     set rc [catch {
-        # debugging critcl
-        ::critcl::config lines 0
-        ::critcl::config keepsrc 1
-        ::critcl::cache ./.critcl
-
-# for testing, this is executed on startup, 
-# uncomment for non-dev
-        #::critcl::clean_cache
-
-        # redefine internal critcl print to capture error messages
-        ::proc ::critcl::print {args} {
-            append ::tsp::cc_output [lindex $args end]
+        if {$::tsp::COMPILE_PACKAGE==0} {
+            set handle [tcc4tcl::new]
+            $handle add_include_path "$::tsp::HOME_DIR/native/clang/"
+            $handle ccode "$::tsp::PACKAGE_HEADER"
+        } else {
+            set handle $::tsp::TCC_HANDLE
         }
-
-        # redefine internal critcl PkgInit to return a custom package name, becomes
-        # the package init 
-        ::proc ::critcl::PkgInit {file} [list return Tsp_user_[string tolower $name]]
-
-        # tcl 8.5 has wide ints, make that the min version
-        ::critcl::tcl 8.5
-
-        # cause compile to fail if return is not coded in execution branch
-        if {[regexp gcc [::critcl::targetconfig]]} {
-            ::critcl::cflags -Werror=return-type -O3
+        $handle ccode [lindex $code 0]
+        set myns ""
+        if {$::tsp::PACKAGE_NAMESPACE ne ""} {
+            set myns "::[string trim $::tsp::PACKAGE_NAMESPACE :]"
         }
+        $handle ccommand "${myns}::$name" {clientData interp objc objv} [lindex $code 1]
 
-        # create the code, first is the proc (ccode), second is the tcl interface (ccommand)
-        ::critcl::ccode [lindex $code 0]
-        ::critcl::ccommand ::$name {clientData interp objc objv} [lindex $code 1]
-
-	# cause critcl to compile the code and load the resulting .so lib
-        ::critcl::load
-
-        dict set compUnit compiledReference tsp.cmd.${name}Cmd
-        format "done"
-    } result ]
-    set critcl_results_dict [critcl::cresults]
+        if {$::tsp::COMPILE_PACKAGE==0} {
+            set compResult [$handle go]
+            ::tsp::addWarning compUnit "TCC: $compResult"
+            dict set compUnit compiledReference tsp.cmd.${name}Cmd
+        } 
+        unset handle
+    } __result ]
+    if {$__result ne ""} {
+        puts "Transpile Result:\n$__result"
+    }
     set errors ""
-#FIXME: use exl key for new critcl version
-    catch {set errors [dict get [critcl::cresults] log]}
     set cc_errors ""
     foreach line [split $::tsp::cc_output \n] {
         if {[regexp -nocase error $line]} {
@@ -1397,11 +1417,7 @@ proc ::tsp::lang_compile {compUnitDict code} {
     if {$rc || [string length $cc_errors] > 0} {
         ::tsp::addError compUnit "error compiling $name:\n$result\n$errors\n$cc_errors"
     }
-#FIXME: remove reset for new critcl version
-    catch {critcl::reset}
 
-    # reset the PkgInit proc for other critcl usage
-    ::proc ::critcl::PkgInit {file} $::tsp::critcl_pkginit
     return $rc
 }
 
@@ -1410,7 +1426,6 @@ proc ::tsp::lang_compile {compUnitDict code} {
 # define a compiledReference in the interp
 #
 proc ::tsp::lang_interp_define {compUnitDict} {
-    # this is handled by critcl
     return
 }
 
@@ -1514,13 +1529,15 @@ proc ::tsp::lang_expr {compUnitDict exprAssignment} {
 }
 
 
+
 ##############################################
-# spill vars into interp, used for ::tsp::volatile,
-# compiled commands that use varName arguments, and
-# spilling final var values for upvar/global/variable.
+# spill vars from interp, used for ::tsp::volatile,
+# compiled commands that use varName arguments, 
+# and final spill for variables after upvar/global/variable
 # returns code
 # NOTE: Tcl error raised if variable is already defined as an array in the interp
 #
+
 proc ::tsp::lang_spill_vars {compUnitDict varList} {
     upvar $compUnitDict compUnit
 
@@ -1528,7 +1545,11 @@ proc ::tsp::lang_spill_vars {compUnitDict varList} {
         return ""
     }
 
-    set buf "/* ::tsp::::tsp::lang_spill_vars $varList */\n"
+    set buf "/* ::tsp::lang_spill_vars $varList */\n"
+    ::tsp::addWarning compUnit "Spilling Vars |$varList| into global namespace" 
+    ::tsp::addWarning compUnit "::tsp::spill: Function not native"
+    dict set compUnit isNative 0
+    
     foreach var $varList {
         set type [::tsp::getVarType compUnit $var]
         if {$type eq "undefined"} {
@@ -1553,7 +1574,10 @@ proc ::tsp::lang_spill_vars {compUnitDict varList} {
         set pre [::tsp::var_prefix $var]
 
         set varnameConst [::tsp::get_constvar [::tsp::getConstant compUnit $var]]
-
+        if {[lsearch $::tsp::NAMESPACE_VARS $var]>-1} {
+            # rewrite varname to nas
+            append buf "$varnameConst = TSP_Util_const_string([::tsp::lang_quote_string ::${::tsp::PACKAGE_NAMESPACE}::$var]);\n"
+        }
         append buf "/* interp.setVar $var */\n"
         if {$type eq "var"} {
             append buf "if ($pre$var == NULL) \{\n"
@@ -1589,7 +1613,7 @@ proc ::tsp::lang_spill_vars {compUnitDict varList} {
 # NOTE: TclException throw if variable is unset or can't convert to native type
 # returns code
 #
-proc ::tsp::lang_load_vars {compUnitDict varList setEmptyWhenNotExists} {
+proc ::tsp::lang_load_vars {compUnitDict varList setEmptyWhenNotExists {fromNamespace ""}} {
     upvar $compUnitDict compUnit
 
     set buf ""
@@ -1624,8 +1648,12 @@ proc ::tsp::lang_load_vars {compUnitDict varList setEmptyWhenNotExists} {
             set interpVar [::tsp::get_tmpvar compUnit var $var]
             set isvar 0
         }
-
-        set varnameConst [::tsp::get_constvar [::tsp::getConstant compUnit $var]]
+        
+        if {$fromNamespace ne ""} {
+            set varnameConst [::tsp::get_constvar [::tsp::getConstant compUnit "${fromNamespace}::$var"]]
+        } else {
+            set varnameConst [::tsp::get_constvar [::tsp::getConstant compUnit $var]]
+        }
 
         if {$setEmptyWhenNotExists} {
             append buf "/* ::tsp::lang_load_vars  interp.getVar $var */\n"
@@ -2029,6 +2057,7 @@ proc ::tsp::lang_return {compUnitDict argVar} {
     switch $returnType {
         string {append code "Tcl_DStringAppend(returnValue, Tcl_DStringValue($argVar), Tcl_DStringLength($argVar));\n"}
         var    {append code "returnValue = $argVar;\nTcl_IncrRefCount(returnValue);\n"}
+        void   {return  "CLEANUP;\n return;\n"}
         default {append code "returnValue = $argVar;\n"}
     }
     append code "*rc = TCL_OK;\n"

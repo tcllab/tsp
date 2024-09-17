@@ -1,6 +1,9 @@
 
 package require tsp
+
+if {$::tcl_platform(platform) eq "java"} {
 hyde::configure -compiler javac
+}
 
 tsp::proc tsp_fib {n} {
     #tsp::procdef int -args int

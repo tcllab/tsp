@@ -21,18 +21,23 @@ invoked directly, bypassing the Tcl interpreter.
 
 TSP is written entirely in Tcl, with support libraries written in C and Java.
 
+Changes to original TSP
+* limited Namespace support for proc names and variables (see  [Features](./docs/tsp-lang-features.md))
+* package support with ::tsp::init_package // ::tsp::finalize_package (see  [Features](./docs/tsp-lang-features.md))
+* #tsp::inlinec and #tsp::altTCL directives to include native c-code and alternative tcl-code (see [Compiler Usage](./docs/compiler-usage.md))
+* some bugfixes I ran into 
 
 # Docs
 
-  1. [Introduction](https://github.com/tpoindex/tsp/blob/master/docs/introduction.md)
-  2. [Features](https://github.com/tpoindex/tsp/blob/master/docs/tsp-lang-features.md)
-  3. [Type System](https://github.com/tpoindex/tsp/blob/master/docs/type-system.md)
-  4. [Compiled Commands](https://github.com/tpoindex/tsp/blob/master/docs/compiled-commands.md)
-  5. [Runtime](https://github.com/tpoindex/tsp/blob/master/docs/runtime.md)
-  6. [Compiler Usage](https://github.com/tpoindex/tsp/blob/master/docs/compiler-usage.md)
-  7. [Future Improvements](https://github.com/tpoindex/tsp/blob/master/docs/future-improvements.md)
-  8. [Install](https://github.com/tpoindex/tsp/blob/master/docs/install.md)
-  9. [Misc.](https://github.com/tpoindex/tsp/blob/master/docs/misc.md)
+  1. [Introduction](./docs/introduction.md)
+  2. [Features](./docs/tsp-lang-features.md)
+  3. [Type System](./docs/type-system.md)
+  4. [Compiled Commands](./docs/compiled-commands.md)
+  5. [Runtime](./docs/runtime.md)
+  6. [Compiler Usage](./docs/compiler-usage.md)
+  7. [Future Improvements](./docs/future-improvements.md)
+  8. [Install](./docs/install.md)
+  9. [Misc.](./docs/misc.md)
 
 
 Wiki (Q & A, discussion, other): http://wiki.tcl.tk/Tcl%20Static%20Prime

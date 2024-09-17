@@ -353,14 +353,15 @@ proc ::tsp::gen_command_return {compUnitDict tree} {
             ::tsp::addError compUnit "wrong # args: proc return type declared as \"$returnType\", but \"return\" has arguments"
             return [list void "" ""]
         }
-        return [list void "" "\nreturn;\n"]
-    }
-
+        #return [list void "" "\n/*return deffered*/;\n"]
+        set result "\n/***** ::tsp::gen_command_return void */\n"
+        append result [::tsp::lang_return compUnit "void"] \n
+        return [list void "" $result]
+    }     
     if {[llength $tree] != 2} {
         ::tsp::addError compUnit "wrong # args: proc return type declared as \"$returnType\", \"return\" requires exactly one argument"
         return [list void "" ""]
     }
-
 
     # generate assignment to a tmp var that will be the return type
     # FIXME: probably should just return the return argument when it's the same type
