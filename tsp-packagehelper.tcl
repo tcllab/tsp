@@ -41,14 +41,20 @@ namespace eval ::tsp {
     
     # give name of save tcl source here, otherwise we use __lastsaved__.tcl
     variable ACTSOURCE ""
+    
+    variable _HOOK_LEVEL 0
 }
 
-proc ::tsp::hook_proc {} {
+proc ::tsp::hook_proc {level} {
     # we hook the proc construct to get information about package defined procs
+    variable _HOOK_LEVEL
+    set _HOOK_LEVEL $level
     if {[info command ::__proc] eq ""} {
         rename ::proc ::__proc
         ::__proc ::proc {procName procargs procbody} {
-            lappend ::tsp::TCL_PROCS  [list $procName $procargs $procbody]
+            if {([info script] eq "")&&([info level]==$::tsp::_HOOK_LEVEL)} {
+                lappend ::tsp::TCL_PROCS  [list $procName $procargs $procbody]
+            }
             if {[catch {uplevel 0 ::__proc [list $procName $procargs $procbody]} err]} {
                 rename ::proc ""
                 rename ::__proc ::proc
@@ -112,7 +118,7 @@ proc ::tsp::init_package {packagename {packagenamespace ""} {packageversion 1.0}
     set ::tsp::LOAD_DLLS "" 
     set ::tsp::EXTERNAL_DLLS "" 
     
-    ::tsp::hook_proc
+    ::tsp::hook_proc [info level]
 }
 
 proc ::tsp::finalize_package {{packagedir ""} {compiler none}} {
@@ -206,18 +212,25 @@ proc ::tsp::add_dllinclude {fname} {
     lappend ::tsp::EXTERNAL_DLLS $fname
 }
 
-proc ::tsp::test_packageX {packagename {callcmd ""} {shell "./tclkit_866_3.upx.exe"}} {
-    # ok, now things really get difficult, if the directory structure doesn't work
+proc ::tsp::test_packageX {packagename {callcmd ""} {shell "./tclkit_8.6.12.exe"}} {
+    # ok, now things really get difficult, if the directory structure doesn't work "./tclkit_866_3.upx.exe"
     # this actually only works under windows, you need a tclkit named $shell in the current working dir
     set result "failed testloading package $packagename"
     set callresult ""
+    set packagedir [file dir $packagename]
+    set packagename [file tail $packagename]
     puts "Testing package $packagename"
     if {[catch {
         puts "Creating new exec"
         set fd [open resrc.tcl w]
-        puts "appending auto_path with [file dir $tsp::PACKAGE_DIR]"
+        puts $fd "#!/usr/bin/tclsh"
         puts $fd "catch {console show}"
+        puts "appending auto_path with [file dir $tsp::PACKAGE_DIR]"
         puts $fd "lappend auto_path [file dir $tsp::PACKAGE_DIR]"
+        if {[file dir $tsp::PACKAGE_DIR] ne $packagedir} {
+            puts "appending auto_path with $packagedir"
+            puts $fd "lappend auto_path $packagedir"
+        }
         puts "Loading package... $packagename"
         puts $fd "package require $packagename"
         
@@ -232,43 +245,56 @@ proc ::tsp::test_packageX {packagename {callcmd ""} {shell "./tclkit_866_3.upx.e
     puts "Go"
     
     # shell actually hardcoded... todo implement some clever routine to find nearest kit
-    
-    if {[catch {
-        if {![file exists $shell]} {
-            puts "Shell not found $shell... searching"
-            # mark your shells as tclkit-8.6.6.exe to get found 866 8-6-6 all will do
-            # this will search for 8.6.6 shell
-            # or at least any 8.6 shell
-            set flist [glob tclkit*.exe]
-            set cand ""
-            foreach kit $flist {
-                set vnum [join [regexp -all -inline "\[0-9\]" $kit]]
-                set vstring2 [join [lrange $vnum 0 1] "."]
-                set vstring3 [join [lrange $vnum 0 2] "."]
-                if {$vstring2 eq "8.6"} {
-                    lappend cand $kit $vstring3
-                }
-                if {$vstring3 eq "8.6.6"} {
-                    # found an 866, use it
-                    set shell $kit
-                    puts "found $shell"
-                    break;
-                }
-            }
-            if {[llength $cand]==0} {
-                puts "Error: Shell not found"
-                return 
-            }
-            set cand [lsort -decreasing -stride 2 $cand]
-            puts "Candidates $cand"
-            set shell [lindex $cand 0]
-            puts "using $shell"
-            
+    # and to run under linux
+    if {$::tcl_platform(platform)=="unix"} {
+        puts "Seems to be a native linux, calling tclsh"
+        #exec >@stdout tclsh resrc.tcl
+        # solution:
+        set runcmd [list exec tclsh resrc.tcl 2>@stderr]
+        
+        if {[catch $runcmd res]} {
+          error "Failed to run command $runcmd: $res"
         }
-        exec $shell resrc.tcl &
-    } err]} {
-            puts "Error while preparing package $packagename\n$err"
+        
+        puts $res
+    } else {
+        if {[catch {
+            if {![file exists $shell]} {
+                puts "Shell not found $shell... searching"
+                # mark your shells as tclkit-8.6.6.exe to get found 866 8-6-6 all will do
+                # this will search for 8.6.6 shell
+                # or at least any 8.6 shell
+                set flist [glob tclkit*.exe]
+                set cand ""
+                foreach kit $flist {
+                    set vnum [join [regexp -all -inline "\[0-9\]" $kit]]
+                    set vstring2 [join [lrange $vnum 0 1] "."]
+                    set vstring3 [join [lrange $vnum 0 2] "."]
+                    if {$vstring2 eq "8.6"} {
+                        lappend cand $kit $vstring3
+                    }
+                    if {$vstring3 eq "8.6.6"} {
+                        # found an 866, use it
+                        set shell $kit
+                        puts "found $shell"
+                        break;
+                    }
+                }
+                if {[llength $cand]==0} {
+                    puts "Error: Shell not found"
+                    return 
+                }
+                set cand [lsort -decreasing -stride 2 $cand]
+                puts "Candidates $cand"
+                set shell [lindex $cand 0]
+                puts "using $shell"
+                
+            }
+            exec $shell resrc.tcl &
+        } err]} {
+                puts "Error while preparing package $packagename\n$err"
         }
+    }
     return 
 }
 
@@ -353,14 +379,20 @@ proc ::tsp::rewrite_procnamespace {} {
     foreach {procname cprocname} $state(procs) {
         if {[lsearch $::tsp::PACKAGE_PROCS [namespace tail $procname]]<0} {
             # pure c implemented... there will be no valid TCL representation
-            set procdef [list $procname "args" [list puts "Not implemented \"$procname\""]]
-            lappend ::tsp::PACKAGE_PROCS $procname $procdef
+            ##set procdef [list $procname "args" [list puts "Not implemented \"$procname\""]]
+            ##lappend ::tsp::PACKAGE_PROCS $procname $procdef
             set cdef [dict get $state(procdefs) $procname]
             lassign $cdef cprocname rtype cprocargs
             set procargs ""
+            set procargsfull ""
             foreach {ctype vname} $cprocargs {
                 lappend procargs $ctype
+                if {$vname!= "interp"} {
+                    lappend procargsfull $vname
+                }
             }
+            set procdef [list $procname "$procargsfull" [list puts "Not implemented \"$procname\""]]
+            lappend ::tsp::PACKAGE_PROCS $procname $procdef
             #lappend ::tsp::COMPILED_PROCS $procname [list $rtype $procargs $cprocname]
         }
     }
@@ -402,11 +434,16 @@ proc ::tsp::write_pkgIndex {packagename} {
     catch {set tclpr $::tsp::TCL_PROCS}
     foreach tcldef $tclpr {
         lassign $tcldef cproc cvars cbody
-        puts $fd "# $cproc $cvars"
+        puts $fd [string map {\n "."} "# $cproc $cvars"]
     }
     set handle $::tsp::TCC_HANDLE
     set loadextlibs "proc ${packagename}_loadextdlls {dir} {\ncatch {\n"
-    append loadextlibs {set appdir [file dir [info nameofexecutable]]}
+    append loadextlibs {
+        switch -- $::tcl_platform(platform) {
+            windows {set appdir [file dir [info nameofexecutable]]}
+            unix {set appdir [file dir [info script]]}
+        }
+    }
     append loadextlibs "\n"
     
     set libs [$handle add_library]
@@ -415,6 +452,9 @@ proc ::tsp::write_pkgIndex {packagename} {
         lappend libs {*}$::tsp::EXTERNAL_DLLS
     }
     foreach incpath $libs {
+        if {![file exists [file join $tsp::PACKAGE_DIR $incpath[info sharedlibextension]]]} {
+            set incpath lib$incpath
+        }
         append loadextlibs "\nset incdll \[file join \$dir $incpath\[info sharedlibextension\]\]\n"
         append loadextlibs "set appdll \[file join \$appdir $incpath\[info sharedlibextension\]\]\n"
         append loadextlibs "if {!\[file exists \$appdll\]} {\n"
@@ -605,7 +645,7 @@ proc ::tsp::compile_package {packagename {compiler tccwin32}} {
     puts "Compiling external $cdirect"
     set  ::errorCode ""
     catch {
-        eval exec $cdirect
+        exec {*}$cdirect
     } err
     cd $wd
     puts "Result:\n$err\n"

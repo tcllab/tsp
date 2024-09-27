@@ -163,7 +163,7 @@ proc ::tcc4tcl::analyse_includes {handle {prefix ""}} {
         set prefix $::tccenv::pathprefix/
     }
     set prefix1 ${prefix}lib/
-    set prefix2 ${prefix}lib/tcc4tcl-0.30/
+    set prefix2 ${prefix}lib/tcc4tcl/
     
     foreach path $usedpath {
         set shortpath [string map [list $prefix ""] $path]
@@ -264,7 +264,8 @@ proc ::tcc4tcl::prepare_compilerdirectives {filepath handle} {
     # $exeFile          cc to execute
     # $compilertype      can be gccwin32/gcclin64/tccwin32/tcclin64/user   and defines prebuilt ccOptions to use; set to user to have no predefined options
     puts "Making Directives for $filepath ($::tccenv::tccmaindir)" 
-    set pathway [::tcc4tcl::analyse_includes $handle]
+    set pathway ""
+    catch {set pathway [::tcc4tcl::analyse_includes $handle]}
     set includestccwin32 "-Iinclude -Iinclude/stdinc -Iinclude/generic -Iinclude/generic/win -Iinclude/xlib -Iwin32 -Iwin32/winapi "
     set includesgccwin32 "-Iinclude -Iinclude/generic -Iinclude/generic/win -Iinclude/xlib"
     set includestcclin64 "-Iinclude -Iinclude/stdinc -Iinclude/generic -Iinclude/generic/unix -Iinclude/xlib "
@@ -272,15 +273,15 @@ proc ::tcc4tcl::prepare_compilerdirectives {filepath handle} {
     set includesuser ""
 
     set librariestccwin32 "-ltclstub86elf -ltkstub86elf"
-    set librariestcclin64 "-ltclstub86elf -ltkstub86elf"
+    set librariestcclin64 "-ltclstub86_64 -ltkstub86_64"
     set librariesgccwin32 "-Llib -ltclstub86 -ltkstub86"
     set librariesgcclin64 "-Llib -ltclstub86_64 -ltkstub86_64"
     set librariesuser ""
     
     set ccoptionstccwin32 "-m32 -D_WIN32 "
     set ccoptionsgccwin32 "-s -m32 -D_WIN32 -static-libgcc "
-    set ccoptionstcclin64 ""
-    set ccoptionsgcclin64 "-s -fPIC -D_GNU_SOURCE "
+    set ccoptionstcclin64 {-Wl,-rpath='.'}
+    set ccoptionsgcclin64 {-s -fPIC -D_GNU_SOURCE -Wl,-rpath=. }
     
     set ccoptionstccuser ""
     
@@ -296,8 +297,14 @@ proc ::tcc4tcl::prepare_compilerdirectives {filepath handle} {
     
     set libraries_addon ""
     lappend libraries_addon "-Llib"
+    set libps ""
+    set libs ""
+    set opts ""
+    catch {
     set libps [$handle add_library_path]
     set libs [$handle add_library]
+    set opts [$handle add_options]
+    }
     foreach inclib $libs {
         lappend libraries_addon "-l$inclib"
     }
@@ -342,9 +349,10 @@ proc ::tcc4tcl::prepare_compilerdirectives {filepath handle} {
         set ccpath [file join $exeDir $exeFile]
         append ccoptions " -shared -DUSE_TCL_STUBS -O2"
         append ccOptions " $ccoptions"
+        append ccOptions " [join $opts { }]"
         
-        puts "Directive for $compiler"
-        puts "$ccpath $ccOptions $includes $includes_generic $cfile -o$ofile $libraries"
+        #puts "Directive for $compiler"
+        #puts "$ccpath $ccOptions $includes $includes_generic $cfile -o$ofile $libraries"
         lappend ccdirectives $compiler "$ccpath $ccOptions $includes $includes_generic $cfile -o$ofile $libraries"
     }
     return $ccdirectives
@@ -406,7 +414,7 @@ proc ::tcc4tcl::write_packagecode {handle packagename {filepath ""} {packagevers
 #   define DLLIMPORT __declspec(dllimport)
 #   define DLLEXPORT __declspec(dllexport)
 #else
-#   define DLLIMPORT __attribute__(dllimport)
+#   define DLLIMPORT 
 #   if defined(__GNUC__) && __GNUC__ > 3
 #       define DLLEXPORT __attribute__ ((visibility(\"default\")))
 #   else
