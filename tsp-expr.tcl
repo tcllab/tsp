@@ -587,7 +587,7 @@ proc ::tsp::produce_subexpr {compUnitDict expr tree} {
             set type [::tsp::getVarType compUnit $thingtext]
             set idx [lsearch -exact $::tsp::EXPR_TYPES $type]
             if {$idx == -1} {
-                error "variable \"$thingtext\" not type of boolean, int, double, or string: \"$type\" in expression: $nodeexpr"
+                error "subex variable \"$thingtext\" not type of boolean, int, double, or string: \"$type\" in expression: $nodeexpr"
             }
             # NOTE that we change the variable for native compilation by prefixing with "__"
             set pre [::tsp::var_prefix $thingtext]

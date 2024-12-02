@@ -492,7 +492,8 @@ proc ::tsp::reset_tmpvarsUsed {compUnitDict} {
 
 proc ::tsp::get_tmpvar {compUnitDict type {varName ""}} {
     upvar $compUnitDict compUnit
-
+    #set callerlevel [expr [info level]-1]
+    #puts "tempvar $type requested from $callerlevel: [info level $callerlevel]"
     if {[lsearch $::tsp::VAR_TYPES $type] < 0 || $type eq "array"} {
         error "::tsp::get_tmpvar - invalid var type $type\n[::tsp::currentLine compUnit]\n[::tsp::error_stacktrace]"
     }

@@ -67,7 +67,7 @@ proc ::tsp::gen_command_set {compUnitDict tree} {
     }
     set targetStr [parse getstring $body [lindex [lindex $tree 1] 1]]
     set sourceStr [parse getstring $body [lindex [lindex $tree 2] 1]]
-
+    #puts "set $targetStr $sourceStr " 
     # check target, should be a single text, text_array_idxtext, or text_array_idxvar
     set targetComponents [::tsp::parse_word compUnit [lindex $tree 1]]
     set firstType [lindex [lindex $targetComponents 0] 0]
@@ -390,7 +390,7 @@ proc ::tsp::produce_set {compUnitDict tree targetComponents sourceComponents} {
 	    # generate assignment
 	    # mostly same as a scalar from scalar assignment
 	    set sourceVarName $sourceRhsVar
-	    append result "\n/***** ::tsp::generate_set assign from command */\n"
+	    append result "\n/***** ::tsp::generate_set assign from command (set $targetVarName = $sourceVarName) */\n"
 	    append code $sourceCode
 	    set targetType [::tsp::gen_check_target_var compUnit $targetVarName $targetType $sourceType]
 	    if {$targetType eq "ERROR"} {
@@ -640,7 +640,8 @@ proc ::tsp::gen_assign_var_string_interpolated_string {compUnitDict targetVarNam
     set targetPre [::tsp::var_prefix $targetVarName]
 
     append result "\n/***** ::tsp::gen_assign_var_string_interpolated_string */\n"
-
+    
+    
     set tmp [::tsp::get_tmpvar compUnit string]
     set tmp2 ""
     set arrVar ""
@@ -648,6 +649,13 @@ proc ::tsp::gen_assign_var_string_interpolated_string {compUnitDict targetVarNam
         set tmp2 [::tsp::get_tmpvar compUnit string]
         append result [::tsp::lang_assign_empty_zero $tmp2 string]
     }
+    # fix: why is this not reset?
+    if {$targetType eq "string"} {
+        if {$targetPre!=""} {
+            append result  "Tcl_DStringSetLength($targetPre$targetVarName,0);\n"
+        }
+    }
+        
     foreach component $sourceComponents {
         set compType [lindex $component 0]
         switch $compType {
@@ -684,6 +692,7 @@ proc ::tsp::gen_assign_var_string_interpolated_string {compUnitDict targetVarNam
                 append code [::tsp::gen_assign_scalar_scalar compUnit $tmp string $sourceRhsVar $sourceType ]
             }
             text_array_idxvar - array_idxvar {
+                puts "//Parsing Array $compType in $component of $sourceComponents\n"
                  append code "//Parsing Array $compType in $component of $sourceComponents\n"
                  #::tsp::addWarning compUnit "$compType not implemented $component $sourceComponents"
                  #append code "// Parsing $component in $sourceComponents\n"
@@ -705,8 +714,8 @@ proc ::tsp::gen_assign_var_string_interpolated_string {compUnitDict targetVarNam
 					set tmp_a [::tsp::get_tmpvar compUnit var tmp_array]
 					set tmp_v [::tsp::get_tmpvar compUnit var tmp_idx]
 					append code [::tsp::lang_assign_var_string $tmp_v $tmp_s]
-					# append code "// Convert array |$tmp_a| to $tmp\n"
-                     append code [::tsp::lang_assign_var_array_idxvar $tmp_a [::tsp::get_constvar [::tsp::getConstant compUnit [lindex $component 1]]] $tmp_v "Error loading Array Text"]
+					#append code "// Convert array |$tmp_a| to $tmp\n"
+                    append code [::tsp::lang_assign_var_array_idxvar $tmp_a [::tsp::get_constvar [::tsp::getConstant compUnit [lindex $component 1]]] $tmp_v "Error loading Array Text"]
 					append code [::tsp::lang_convert_string_var $tmp $tmp_a]
 				} else {
 				    set sourceText [lindex $sourceComponents 3]
@@ -724,7 +733,7 @@ proc ::tsp::gen_assign_var_string_interpolated_string {compUnitDict targetVarNam
                     }
 				}
 				if {$targetType eq "string"} {
-					#append code "// Append string |$tmp|\n"
+					#append code "// Append string 727 |$tmp|\n"
 					append code [::tsp::lang_append_string $targetPre$targetVarName $tmp]
 				} elseif {$targetType eq "var"} {
 					#append code "// Append var |$tmp|\n"
@@ -732,7 +741,7 @@ proc ::tsp::gen_assign_var_string_interpolated_string {compUnitDict targetVarNam
 				}
 				#append code [::tsp::lang_assign_empty_zero $tmp string]
 				if {$doreturn>0} {
-				    append code "// exiting\n"
+				    #append code "// exiting\n"
 					return $code
 				}
             }
@@ -759,8 +768,11 @@ proc ::tsp::gen_assign_var_string_interpolated_string {compUnitDict targetVarNam
                     }
 				}
 				if {$targetType eq "string"} {
-					#append code "// Append string |$tmp|\n"
-					append code [::tsp::lang_append_string $targetPre$targetVarName $tmp]
+					#append code "// Append string 763 |$tmp|\n"
+					##???append code [::tsp::lang_append_string $targetPre$targetVarName $tmp]
+					### deleted this output 23-Oct 20, since it produced continuosly double output with 
+					### Line 781 string case
+					#append code "// ok;\n"
 				} elseif {$targetType eq "var"} {
 					#append code "// Append var |$tmp|\n"
 					append code [::tsp::lang_assign_var_string $targetVarName $tmp]
@@ -777,6 +789,7 @@ proc ::tsp::gen_assign_var_string_interpolated_string {compUnitDict targetVarNam
             }
         }
         if {$targetType eq "string"} {
+            append code "// Append string 781 |$tmp|\n"
             append code [::tsp::lang_append_string $targetPre$targetVarName $tmp]
         } elseif {$targetType eq "var"} {
             append code [::tsp::lang_append_string $tmp2 $tmp]

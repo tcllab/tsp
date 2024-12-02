@@ -7,7 +7,7 @@
 # PACKAGENAME_tsp_YYYY-MM-DD-hh-mm-ss.tcl (with tsp directives to create package)
 # pkgIndex.tcl
 # PACKAGENAME.puretcl.tcl (Untouched, pure TCL procs)
-# PACKAGENAME.tclorig.tcl (TCL Replacment procs)
+# PACKAGENAME.tclprocs.tcl (TCL Replacment procs)
 # PACKAGENAME.c (sourcecode, final)
 # PACKAGENAME.dll (binary file)
 # 
@@ -29,6 +29,7 @@ namespace eval ::tsp {
     variable PACKAGE_NAME ""
     variable PACKAGE_VERSION "1.0"
     variable PACKAGE_DIR ""
+    variable TSPPACKAGE_SPACE [file normalize [file dirname [info script]]]
     variable TCL_VERSION "TCL_VERSION"
     variable TCL_PROCS ""
     # load tcls for additional sources
@@ -49,9 +50,11 @@ proc ::tsp::hook_proc {level} {
     # we hook the proc construct to get information about package defined procs
     variable _HOOK_LEVEL
     set _HOOK_LEVEL $level
+    #puts "Hooking proc $level"
     if {[info command ::__proc] eq ""} {
         rename ::proc ::__proc
         ::__proc ::proc {procName procargs procbody} {
+            #puts "Hook hit $procName in -[info script]- lv [info level]==$::tsp::_HOOK_LEVEL ?"
             if {([info script] eq "")&&([info level]==$::tsp::_HOOK_LEVEL)} {
                 lappend ::tsp::TCL_PROCS  [list $procName $procargs $procbody]
             }
@@ -150,7 +153,7 @@ proc ::tsp::finalize_package {{packagedir ""} {compiler none}} {
         } else {
             set ::tsp::COMPILE_DIRECTIVES [::tcc4tcl::write_packagecode $::tsp::TCC_HANDLE $::tsp::PACKAGE_NAME $tsp::PACKAGE_DIR $::tsp::PACKAGE_VERSION $::tsp::TCL_VERSION]
         }
-    }
+    } 
     
     ::tsp::write_pkgAltTcl $::tsp::PACKAGE_NAME
     ::tsp::write_pkgIndex $::tsp::PACKAGE_NAME
@@ -174,8 +177,17 @@ proc ::tsp::finalize_package {{packagedir ""} {compiler none}} {
     }
     
     ::tsp::compile_package $::tsp::PACKAGE_NAME $compiler
+    # pkginit?
+    if {$::tsp::PACKAGE_INIT_PROC>0} {
+        if {$compiler in "intern memory"} {
+            if {[catch {${::tsp::PACKAGE_NAME}_pkgInit} e]} {
+                puts "error: $e"
+            }
+        }
+    }
     set ::tsp::COMPILE_PACKAGE 0
     set ::tsp::PACKAGE_NAME ""
+        
 }
 
 proc ::tsp::addExternalCompiler {compiler ccOptions exeDir exeFile {compilertype gccwin32}} {
@@ -212,25 +224,29 @@ proc ::tsp::add_dllinclude {fname} {
     lappend ::tsp::EXTERNAL_DLLS $fname
 }
 
-proc ::tsp::test_packageX {packagename {callcmd ""} {shell "./tclkit_8.6.12.exe"}} {
+proc ::tsp::test_packageX {packagename {callcmd ""} {shell "tclkit_8.6.12.exe"}} {
     # ok, now things really get difficult, if the directory structure doesn't work "./tclkit_866_3.upx.exe"
     # this actually only works under windows, you need a tclkit named $shell in the current working dir
-    set result "failed testloading package $packagename"
+    set result "failed testloading package $packagename in [pwd]"
     set callresult ""
     set packagedir [file dir $packagename]
     set packagename [file tail $packagename]
-    puts "Testing package $packagename"
+    puts "Testing package $packagename in [pwd]"
     if {[catch {
         puts "Creating new exec"
-        set fd [open resrc.tcl w]
+        set res_name [file normalize resrc.tcl]
+        set fd [open $res_name w]
         puts $fd "#!/usr/bin/tclsh"
         puts $fd "catch {console show}"
-        puts "appending auto_path with [file dir $tsp::PACKAGE_DIR]"
-        puts $fd "lappend auto_path [file dir $tsp::PACKAGE_DIR]"
+        puts "appending auto_path with [file normalize [file dir $tsp::PACKAGE_DIR]]"
+        puts $fd "lappend auto_path [file normalize [file dir $tsp::PACKAGE_DIR]]"
+        puts "Testing for [file dir $tsp::PACKAGE_DIR] ne $packagedir"
         if {[file dir $tsp::PACKAGE_DIR] ne $packagedir} {
             puts "appending auto_path with $packagedir"
             puts $fd "lappend auto_path $packagedir"
         }
+        puts "Appending $tsp::TSPPACKAGE_SPACE"
+        puts $fd "lappend auto_path $tsp::TSPPACKAGE_SPACE"
         puts "Loading package... $packagename"
         puts $fd "package require $packagename"
         
@@ -247,11 +263,12 @@ proc ::tsp::test_packageX {packagename {callcmd ""} {shell "./tclkit_8.6.12.exe"
     # shell actually hardcoded... todo implement some clever routine to find nearest kit
     # and to run under linux
     if {$::tcl_platform(platform)=="unix"} {
-        puts "Seems to be a native linux, calling tclsh"
+        puts "Seems to be a native linux, calling tclsh $res_name"
         #exec >@stdout tclsh resrc.tcl
         # solution:
-        set runcmd [list exec tclsh resrc.tcl 2>@stderr]
-        
+        set runcmd "exec tclsh \"$res_name\" 2>@stderr"
+        #"
+        puts "running $runcmd"
         if {[catch $runcmd res]} {
           error "Failed to run command $runcmd: $res"
         }
@@ -264,10 +281,15 @@ proc ::tsp::test_packageX {packagename {callcmd ""} {shell "./tclkit_8.6.12.exe"
                 # mark your shells as tclkit-8.6.6.exe to get found 866 8-6-6 all will do
                 # this will search for 8.6.6 shell
                 # or at least any 8.6 shell
-                set flist [glob tclkit*.exe]
+                set flist [glob -nocomplain tclkit*.exe]
+                if {[llength $flist]==0} {
+                    puts "Shell not found in ./ ... searching $::tccenv::tclexedir"
+                    set flist [glob -nocomplain [file join $::tccenv::tclexedir tclkit*.exe]]
+                    puts $flist
+                }
                 set cand ""
                 foreach kit $flist {
-                    set vnum [join [regexp -all -inline "\[0-9\]" $kit]]
+                    set vnum [join [regexp -all -inline "\[0-9\]" [file tail $kit]]]
                     set vstring2 [join [lrange $vnum 0 1] "."]
                     set vstring3 [join [lrange $vnum 0 2] "."]
                     if {$vstring2 eq "8.6"} {
@@ -290,7 +312,7 @@ proc ::tsp::test_packageX {packagename {callcmd ""} {shell "./tclkit_8.6.12.exe"
                 puts "using $shell"
                 
             }
-            exec $shell resrc.tcl &
+            exec $shell $res_name &
         } err]} {
                 puts "Error while preparing package $packagename\n$err"
         }
@@ -381,18 +403,20 @@ proc ::tsp::rewrite_procnamespace {} {
             # pure c implemented... there will be no valid TCL representation
             ##set procdef [list $procname "args" [list puts "Not implemented \"$procname\""]]
             ##lappend ::tsp::PACKAGE_PROCS $procname $procdef
-            set cdef [dict get $state(procdefs) $procname]
-            lassign $cdef cprocname rtype cprocargs
-            set procargs ""
-            set procargsfull ""
-            foreach {ctype vname} $cprocargs {
-                lappend procargs $ctype
-                if {$vname!= "interp"} {
-                    lappend procargsfull $vname
+            catch {
+                set cdef [dict get $state(procdefs) $procname]
+                lassign $cdef cprocname rtype cprocargs
+                set procargs ""
+                set procargsfull ""
+                foreach {ctype vname} $cprocargs {
+                    lappend procargs $ctype
+                    if {$vname!= "interp"} {
+                        lappend procargsfull $vname
+                    }
                 }
+                set procdef [list $procname "$procargsfull" [list puts "Not implemented \"$procname\""]]
+                lappend ::tsp::PACKAGE_PROCS $procname $procdef
             }
-            set procdef [list $procname "$procargsfull" [list puts "Not implemented \"$procname\""]]
-            lappend ::tsp::PACKAGE_PROCS $procname $procdef
             #lappend ::tsp::COMPILED_PROCS $procname [list $rtype $procargs $cprocname]
         }
     }
@@ -411,31 +435,47 @@ proc ::tsp::rewrite_procnamespace {} {
     set state(procs) $nsprocs
 }
 
-proc ::tsp::write_pkgIndex {packagename} {
-    # write a pkindex.tcl file to load package
-    if {$tsp::PACKAGE_DIR eq ""} {
-        set filename [file join $tsp::PACKAGE_DIR "$packagename.pkgIndex.tcl"]
-    } else {
-        set filename [file join $tsp::PACKAGE_DIR "pkgIndex.tcl"]
-    }
-    set fd [open $filename w]
-    puts $fd "# Package Index for $packagename generated by TSP//TCCIDE Version $::_version"
-    puts $fd "# Compiled Procs "
-    puts $fd ""
+proc ::tsp::getProcIndex {packagename} {
+    #
+    set helpindex ""
+    lappend helpindex "# Help Index:"
+    lappend helpindex "# Generated at [set t [clock format [clock seconds] -format "%Y-%m-%d_%H-%M-%S"]]"
+    lappend helpindex "# Package Index/Loader for $packagename generated by TSP//TCCIDE Version $::_version"
+    lappend helpindex ""
+    lappend helpindex "# Compiled Procs "
+    lappend helpindex ""
     set cpr {}
     catch {set cpr $::tsp::PACKAGE_PROCS}
     foreach {procname procdef} $cpr {
         lassign $procdef cproc cvars cbody
-        puts $fd "# ${::tsp::PACKAGE_NAMESPACE}::$cproc $cvars"
+        lappend helpindex "# ${::tsp::PACKAGE_NAMESPACE}::$cproc $cvars"
     }
-    puts $fd "\n# TCL Procs "
-    puts $fd ""
+    lappend helpindex ""
+    lappend helpindex "# TCL Procs "
+    lappend helpindex ""
     set tclpr {}
     catch {set tclpr $::tsp::TCL_PROCS}
     foreach tcldef $tclpr {
         lassign $tcldef cproc cvars cbody
-        puts $fd [string map {\n "."} "# $cproc $cvars"]
+        lappend helpindex [string map {\n "."} "# $cproc $cvars"]
     }
+    return [join $helpindex \n]
+}
+
+proc ::tsp::write_pkgIndex {packagename} {
+    # write a pkgindex.tcl file to load package
+    if {$tsp::PACKAGE_DIR eq ""} {
+        set filename [file join $tsp::PACKAGE_DIR "$packagename.pkgIndex.tcl"]
+        set loadername [file join $tsp::PACKAGE_DIR "$packagename.${packagename}.loader.tcl"]
+    } else {
+        set filename [file join $tsp::PACKAGE_DIR "pkgIndex.tcl"]
+        set loadername [file join $tsp::PACKAGE_DIR "${packagename}.loader.tcl"]
+    }
+    
+    set fd [open $loadername w]
+
+    puts $fd [::tsp::getProcIndex $packagename]
+    
     set handle $::tsp::TCC_HANDLE
     set loadextlibs "proc ${packagename}_loadextdlls {dir} {\ncatch {\n"
     append loadextlibs {
@@ -468,17 +508,19 @@ proc ::tsp::write_pkgIndex {packagename} {
     }
     
     set pkgloadlib  "proc ${packagename}_loadlib {dir packagename} {\n"
-    if {$loadextlibs ne ""} {
+    if {($loadextlibs ne "")} {
         append pkgloadlib "     ${packagename}_loadextdlls \$dir\n"
+    }
+    if {($loadextlibs ne "")||($::tsp::LOAD_DLLS ne "")} {
         append pkgloadlib "     ${packagename}_loadext \$dir\n"
     }
-    if {$cpr ne ""} {
+    if {$::tsp::PACKAGE_PROCS ne ""} {
         append pkgloadlib "     if {\[catch {load \[file join \$dir \$packagename\[info sharedlibextension\]\]} err\]} {\n"
         append pkgloadlib "         source  \[file join \$dir \${packagename}.tclprocs.tcl\]\n"
         append pkgloadlib "     }\n"
     }
     
-    if {$tclpr ne ""} {
+    if {$::tsp::TCL_PROCS ne ""} {
         # load puretcl proc also
         append pkgloadlib "     source  \[file join \$dir \${packagename}.puretcl.tcl\]\n" 
         if {$::tsp::PACKAGE_INIT_PROC>0} {
@@ -501,12 +543,17 @@ proc ::tsp::write_pkgIndex {packagename} {
     }
     append pkgloadext "}\n"
     
-    
-    set pkgrun "package ifneeded $packagename $::tsp::PACKAGE_VERSION \[list ${packagename}_loadlib \$dir {$packagename}\]\n"
+    set pkgrun "#run loader here\n${packagename}_loadlib \[file dir \[info script\]\] {$packagename}\n"
 
     puts $fd $loadextlibs
     puts $fd $pkgloadlib
     puts $fd $pkgloadext
+    puts $fd $pkgrun
+    close $fd
+    
+    set fd [open $filename w]
+    
+    set pkgrun "package ifneeded $packagename $::tsp::PACKAGE_VERSION \[list source \[file join \$dir [file tail $loadername]\]\]"
     puts $fd $pkgrun
     close $fd
 }
@@ -514,6 +561,21 @@ proc ::tsp::write_pkgIndex {packagename} {
 proc ::tsp::write_pkgAltTcl {packagename} {
     # write an tcl file to keep all procs as alternate to compiled procs (can't load)
     # and those procs, that we didn't compile
+    
+    # add a little help function
+    if {$::tsp::PACKAGE_NAMESPACE eq ""} {
+        set help_proc ${packagename}_help
+    } else {
+        set help_proc ${::tsp::PACKAGE_NAMESPACE}::help
+    }
+    
+    set help_body " puts {\n"
+    append help_body [::tsp::getProcIndex $packagename]
+    append help_body "\n}\n"
+    set help_procdef [list $help_proc "" $help_body]
+    
+    lappend ::tsp::TCL_PROCS $help_procdef
+    
     set filename [file join $tsp::PACKAGE_DIR "$packagename.tclprocs.tcl"]
     set fd [open $filename w]
     puts $fd "#  TSP Pure TCL procs for loadlib failure management"

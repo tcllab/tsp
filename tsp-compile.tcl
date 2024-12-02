@@ -88,6 +88,7 @@ proc ::tsp::compile_proc {file name procargs body} {
     set errInf ""
     set rc [ catch {set compileResult [::tsp::parse_body compUnit {0 end}] } errInf] 
     if {$rc != 0} {
+        catch {puts [join [dict get $compUnit errors] \n]}
         error "tsp internal error: parse_body error: $errInf"
     }
 
@@ -110,6 +111,7 @@ proc ::tsp::compile_proc {file name procargs body} {
     # reparse
     set rc [ catch {set compileResult [::tsp::parse_body compUnit {0 end}] } errInf] 
     if {$rc != 0} {
+        catch {puts [join [dict get $compUnit errors] \n]}
         error "tsp internal error: parse_body error: $errInf"
     }
     

@@ -134,6 +134,7 @@ proc ::tsp::lang_type_null {} {
 # declare a native boolean
 #
 proc ::tsp::lang_decl_native_boolean {varName} {
+    return "int $varName;\n"
     return "int $varName = 0;\n"
 }
 
@@ -141,6 +142,7 @@ proc ::tsp::lang_decl_native_boolean {varName} {
 # declare a native int
 #
 proc ::tsp::lang_decl_native_int {varName} {
+    return "Tcl_WideInt $varName;\n"
     return "Tcl_WideInt $varName = 0;\n"
 }
 
@@ -148,6 +150,7 @@ proc ::tsp::lang_decl_native_int {varName} {
 # declare a native double
 #
 proc ::tsp::lang_decl_native_double {varName} {
+    return "double $varName;\n"
     return "double $varName = 0;\n"
 }
 
@@ -1161,7 +1164,7 @@ proc ::tsp::lang_create_compilable {compUnitDict code} {
         lassign $proc_info procType procArgTypes procRef
             
         if {$procType eq "void"} {
-            set procNativeType ""
+            set procNativeType "void"
         } else {
             set procNativeType "[::tsp::lang_xlate_native_type $procType] "
         }
@@ -1232,10 +1235,11 @@ TSP_UserDirect_${name}(Tcl_Interp* interp, int* rc  $nativeTypedArgs ) {
     int idx2;
     char* str1;     
     char* str2;     
-    char* exprErrMsg = NULL;
+    char* exprErrMsg ;
+    
     Tcl_Obj* _tmpVar_cmdResultObj = NULL;
 
-    Tcl_CallFrame* frame = NULL; 
+    Tcl_CallFrame* frame; 
 
     $returnVarDecl
     [::tsp::indent compUnit $argObjvArrays 1 \n]

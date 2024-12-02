@@ -1,6 +1,6 @@
 package provide tcc4tcl_helper 0.1
 
-namespace eval tccenv {
+namespace eval ::tccenv {
     # some common envelope vars for our ide
     # this tries to analyze the surrounding dirs
     # to find a suitable external compiler
@@ -30,6 +30,23 @@ namespace eval tccenv {
     
     variable EXTERNAL_COMPILERS ""
     variable CC_DIRECTIVES ""
+    variable DLEXPORTMAKRO "
+/***************** DLL EXPORT MAKRO FOR TCC AND GCC ************/
+#if (defined(_WIN32) && (defined(_MSC_VER)|| defined(__TINYC__)  || (defined(__BORLANDC__) && (__BORLANDC__ >= 0x0550)) || defined(__LCC__) || defined(__WATCOMC__) || (defined(__GNUC__) && defined(__declspec))))
+#undef DLLIMPORT
+#undef DLLEXPORT
+#   define DLLIMPORT __declspec(dllimport)
+#   define DLLEXPORT __declspec(dllexport)
+#else
+#   define DLLIMPORT 
+#   if defined(__GNUC__) && __GNUC__ > 3
+#       define DLLEXPORT __attribute__ ((visibility(\"default\")))
+#   else
+#       define DLLEXPORT
+#   endif
+#endif
+/***************************************************************/
+"        
     
     # the following routines try to find tcc.exe and gcc.exe under win32 and set the tccenv vars accordingly
     
@@ -406,23 +423,7 @@ proc ::tcc4tcl::write_packagecode {handle packagename {filepath ""} {packagevers
         }
     }
 
-        set DLEXPORTMAKRO "
-/***************** DLL EXPORT MAKRO FOR TCC AND GCC ************/
-#if (defined(_WIN32) && (defined(_MSC_VER)|| defined(__TINYC__)  || (defined(__BORLANDC__) && (__BORLANDC__ >= 0x0550)) || defined(__LCC__) || defined(__WATCOMC__) || (defined(__GNUC__) && defined(__declspec))))
-#undef DLLIMPORT
-#undef DLLEXPORT
-#   define DLLIMPORT __declspec(dllimport)
-#   define DLLEXPORT __declspec(dllexport)
-#else
-#   define DLLIMPORT 
-#   if defined(__GNUC__) && __GNUC__ > 3
-#       define DLLEXPORT __attribute__ ((visibility(\"default\")))
-#   else
-#       define DLLEXPORT
-#   endif
-#endif
-/***************************************************************/
-"        
+    set DLEXPORTMAKRO $::tccenv::DLEXPORTMAKRO
     upvar #0 $handle state
     set oldtype "package"
     if {$state(type)!="package"} {

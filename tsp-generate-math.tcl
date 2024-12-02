@@ -16,7 +16,6 @@ proc ::tsp::gen_command_expr {compUnitDict tree} {
 
     # just get raw text from body
     set rawtext [::tsp::parse_getstring compUnit [lindex $tree 1]]
-
     if { [string range $rawtext 0 0] ne "\{"} {
         ::tsp::addError compUnit "expr argument not a braced expression"
         return [list void "" ""]
