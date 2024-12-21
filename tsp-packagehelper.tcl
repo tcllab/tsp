@@ -55,16 +55,27 @@ proc ::tsp::hook_proc {level} {
         rename ::proc ::__proc
         ::__proc ::proc {procName procargs procbody} {
             #puts "Hook hit $procName in -[info script]- lv [info level]==$::tsp::_HOOK_LEVEL ?"
-            if {([info script] eq "")&&([info level]==$::tsp::_HOOK_LEVEL)} {
-                lappend ::tsp::TCL_PROCS  [list $procName $procargs $procbody]
+            set nsprocname $procName
+            if {(([info script] eq "")||([info script] eq $::tsp::ACTSOURCE))&&([info level]==$::tsp::_HOOK_LEVEL)} {
+                #puts "lappend ::tsp::TCL_PROCS  [list $procName $procargs $procbody]"
+                if {$::tsp::PACKAGE_NAMESPACE ne ""} {
+                    set nsprocname ::${::tsp::PACKAGE_NAMESPACE}::$procName
+                    puts "Namespace rewriting $procName to $nsprocname"
+                    # check if namespace exists or create it
+                    if {[namespace exists ::${::tsp::PACKAGE_NAMESPACE}]==0} {
+                        namespace eval ::${::tsp::PACKAGE_NAMESPACE} {}
+                    }
+                }
+                lappend ::tsp::TCL_PROCS  [list $nsprocname $procargs $procbody]
             }
-            if {[catch {uplevel 0 ::__proc [list $procName $procargs $procbody]} err]} {
+            if {[catch {uplevel 0 ::__proc [list $nsprocname $procargs $procbody]} err]} {
                 rename ::proc ""
                 rename ::__proc ::proc
                 return -code error "Error in proc $err"
             }
         }
     }
+
 }
 
 proc ::tsp::unhook_proc {} {
@@ -96,7 +107,7 @@ proc ::tsp::init_package {packagename {packagenamespace ""} {packageversion 1.0}
     catch { unset ::tsp::TCC_HANDLE}
     set ::tsp::TCC_HANDLE [tcc4tcl::new]
 
-    set ::tsp::PACKAGE_PROCS ""
+    set ::tsp::NAMESPACE_VARS ""
     set ::tsp::PACKAGE_INIT_PROC 0
     set ::tsp::TCL_PROCS ""
     set ::tsp::PACKAGE_HEADER \
@@ -123,7 +134,9 @@ proc ::tsp::init_package {packagename {packagenamespace ""} {packageversion 1.0}
     
     ::tsp::hook_proc [info level]
 }
-
+proc ::tsp::package_export {exportprocnames} {
+    #
+}
 proc ::tsp::finalize_package {{packagedir ""} {compiler none}} {
     ::tsp::unhook_proc
 
@@ -136,9 +149,9 @@ proc ::tsp::finalize_package {{packagedir ""} {compiler none}} {
         return
     }
 
-    set tsp::PACKAGE_DIR $packagedir
-    if {![file isdir $tsp::PACKAGE_DIR]} {
-        file mkdir $tsp::PACKAGE_DIR
+    set ::tsp::PACKAGE_DIR $packagedir
+    if {![file isdir $::tsp::PACKAGE_DIR]} {
+        file mkdir $::tsp::PACKAGE_DIR
     }
     
     ::tsp::rewrite_procnamespace
@@ -151,9 +164,24 @@ proc ::tsp::finalize_package {{packagedir ""} {compiler none}} {
             set ::tsp::COMPILE_DIRECTIVES ""
             puts "failed crafting compiledirectives... use package require tcc4tcc-helper"
         } else {
-            set ::tsp::COMPILE_DIRECTIVES [::tcc4tcl::write_packagecode $::tsp::TCC_HANDLE $::tsp::PACKAGE_NAME $tsp::PACKAGE_DIR $::tsp::PACKAGE_VERSION $::tsp::TCL_VERSION]
+            set ::tsp::COMPILE_DIRECTIVES [::tcc4tcl::write_packagecode $::tsp::TCC_HANDLE $::tsp::PACKAGE_NAME $::tsp::PACKAGE_DIR $::tsp::PACKAGE_VERSION $::tsp::TCL_VERSION]
         }
     } 
+    
+    # add a little help function
+    if {$::tsp::PACKAGE_NAMESPACE eq ""} {
+        set help_proc ::${::tsp::PACKAGE_NAME}_help
+    } else {
+        set help_proc ::${::tsp::PACKAGE_NAMESPACE}::help
+    }
+    # add help-index
+    set help_body " puts {\n"
+    append help_body [::tsp::getProcIndex $::tsp::PACKAGE_NAME]
+    append help_body "\n}\n"
+    set help_procdef [list $help_proc "" $help_body]
+    set cmd "::$help_proc {} $help_body"
+    ::proc ::$help_proc {} $help_body
+    lappend ::tsp::TCL_PROCS $help_procdef
     
     ::tsp::write_pkgAltTcl $::tsp::PACKAGE_NAME
     ::tsp::write_pkgIndex $::tsp::PACKAGE_NAME
@@ -163,10 +191,10 @@ proc ::tsp::finalize_package {{packagedir ""} {compiler none}} {
     if {($::tsp::ACTSOURCE ne "")&&[file exist $::tsp::ACTSOURCE]} {
         set t [clock format [clock seconds] -format "%Y-%m-%d_%H-%M-%S"]
         set srcname "${::tsp::PACKAGE_NAME}_tsp_${t}.tcl"
-        set srcname [file join $tsp::PACKAGE_DIR $srcname]
+        set srcname [file join $::tsp::PACKAGE_DIR $srcname]
         set vdiff 1
         catch {
-            set lastsrcname [file join $tsp::PACKAGE_DIR "${::tsp::PACKAGE_NAME}_tsp_*.tcl"]
+            set lastsrcname [file join $::tsp::PACKAGE_DIR "${::tsp::PACKAGE_NAME}_tsp_*.tcl"]
             set lastsrcname [lindex [lsort -decreasing [glob $lastsrcname]] 0]
             set vdiff [version:filediff $::tsp::ACTSOURCE $lastsrcname]
         }
@@ -177,6 +205,7 @@ proc ::tsp::finalize_package {{packagedir ""} {compiler none}} {
     }
     
     ::tsp::compile_package $::tsp::PACKAGE_NAME $compiler
+
     # pkginit?
     if {$::tsp::PACKAGE_INIT_PROC>0} {
         if {$compiler in "intern memory"} {
@@ -238,15 +267,15 @@ proc ::tsp::test_packageX {packagename {callcmd ""} {shell "tclkit_8.6.12.exe"}}
         set fd [open $res_name w]
         puts $fd "#!/usr/bin/tclsh"
         puts $fd "catch {console show}"
-        puts "appending auto_path with [file normalize [file dir $tsp::PACKAGE_DIR]]"
-        puts $fd "lappend auto_path [file normalize [file dir $tsp::PACKAGE_DIR]]"
-        puts "Testing for [file dir $tsp::PACKAGE_DIR] ne $packagedir"
-        if {[file dir $tsp::PACKAGE_DIR] ne $packagedir} {
+        puts "appending auto_path with [file normalize [file dir $::tsp::PACKAGE_DIR]]"
+        puts $fd "lappend auto_path [file normalize [file dir $::tsp::PACKAGE_DIR]]"
+        puts "Testing for [file dir $::tsp::PACKAGE_DIR] ne $packagedir"
+        if {[file dir $::tsp::PACKAGE_DIR] ne $packagedir} {
             puts "appending auto_path with $packagedir"
             puts $fd "lappend auto_path $packagedir"
         }
-        puts "Appending $tsp::TSPPACKAGE_SPACE"
-        puts $fd "lappend auto_path $tsp::TSPPACKAGE_SPACE"
+        puts "Appending $::tsp::TSPPACKAGE_SPACE"
+        puts $fd "lappend auto_path $::tsp::TSPPACKAGE_SPACE"
         puts "Loading package... $packagename"
         puts $fd "package require $packagename"
         
@@ -329,8 +358,8 @@ proc ::tsp::test_package {packagename {callcmd ""}} {
     if {[catch {
         puts "Creating new interp"
         set ip [interp create]
-        puts "appending auto_path with [file dir $tsp::PACKAGE_DIR]"
-        $ip eval lappend auto_path [file dir $tsp::PACKAGE_DIR]
+        puts "appending auto_path with [file dir $::tsp::PACKAGE_DIR]"
+        $ip eval lappend auto_path [file dir $::tsp::PACKAGE_DIR]
         puts "Loading package... $packagename"
         set result [$ip eval package require $packagename]
         if {$callcmd ne ""} {
@@ -362,9 +391,9 @@ proc ::tsp::test_altpackage {packagename {callcmd ""}} {
         puts "Creating new interp"
         set ip [interp create]
         puts "Loading TCL package... $packagename.tclprocs.tcl"
-        set result [$ip eval source [file join $tsp::PACKAGE_DIR "${packagename}.tclprocs.tcl"]]
+        set result [$ip eval source [file join $::tsp::PACKAGE_DIR "${packagename}.tclprocs.tcl"]]
         puts "Loading TCL package... $packagename.puretcl.tcl"
-        set result [$ip eval source [file join $tsp::PACKAGE_DIR "${packagename}.puretcl.tcl"]]
+        set result [$ip eval source [file join $::tsp::PACKAGE_DIR "${packagename}.puretcl.tcl"]]
         if {$callcmd ne ""} {
             puts "Calling $callcmd"
             catch {
@@ -447,8 +476,10 @@ proc ::tsp::getProcIndex {packagename} {
     set cpr {}
     catch {set cpr $::tsp::PACKAGE_PROCS}
     foreach {procname procdef} $cpr {
-        lassign $procdef cproc cvars cbody
-        lappend helpindex "# ${::tsp::PACKAGE_NAMESPACE}::$cproc $cvars"
+        if {[string range $procname 0 1]!="__"} {
+            lassign $procdef cproc cvars cbody
+            lappend helpindex "# ${::tsp::PACKAGE_NAMESPACE}::$cproc $cvars"
+        }
     }
     lappend helpindex ""
     lappend helpindex "# TCL Procs "
@@ -464,12 +495,12 @@ proc ::tsp::getProcIndex {packagename} {
 
 proc ::tsp::write_pkgIndex {packagename} {
     # write a pkgindex.tcl file to load package
-    if {$tsp::PACKAGE_DIR eq ""} {
-        set filename [file join $tsp::PACKAGE_DIR "$packagename.pkgIndex.tcl"]
-        set loadername [file join $tsp::PACKAGE_DIR "$packagename.${packagename}.loader.tcl"]
+    if {$::tsp::PACKAGE_DIR eq ""} {
+        set filename [file join $::tsp::PACKAGE_DIR "$packagename.pkgIndex.tcl"]
+        set loadername [file join $::tsp::PACKAGE_DIR "$packagename.${packagename}.loader.tcl"]
     } else {
-        set filename [file join $tsp::PACKAGE_DIR "pkgIndex.tcl"]
-        set loadername [file join $tsp::PACKAGE_DIR "${packagename}.loader.tcl"]
+        set filename [file join $::tsp::PACKAGE_DIR "pkgIndex.tcl"]
+        set loadername [file join $::tsp::PACKAGE_DIR "${packagename}.loader.tcl"]
     }
     
     set fd [open $loadername w]
@@ -481,7 +512,12 @@ proc ::tsp::write_pkgIndex {packagename} {
     append loadextlibs {
         switch -- $::tcl_platform(platform) {
             windows {set appdir [file dir [info nameofexecutable]]}
-            unix {set appdir [file dir [info script]]}
+            unix {
+                set appdir [file dir [info script]]
+                if {$appdir==$dir} {
+                    set appdir [pwd]
+                }
+            }
         }
     }
     append loadextlibs "\n"
@@ -492,7 +528,7 @@ proc ::tsp::write_pkgIndex {packagename} {
         lappend libs {*}$::tsp::EXTERNAL_DLLS
     }
     foreach incpath $libs {
-        if {![file exists [file join $tsp::PACKAGE_DIR $incpath[info sharedlibextension]]]} {
+        if {![file exists [file join $::tsp::PACKAGE_DIR $incpath[info sharedlibextension]]]} {
             set incpath lib$incpath
         }
         append loadextlibs "\nset incdll \[file join \$dir $incpath\[info sharedlibextension\]\]\n"
@@ -564,19 +600,21 @@ proc ::tsp::write_pkgAltTcl {packagename} {
     
     # add a little help function
     if {$::tsp::PACKAGE_NAMESPACE eq ""} {
-        set help_proc ${packagename}_help
+        set help_proc ::${packagename}_help
     } else {
-        set help_proc ${::tsp::PACKAGE_NAMESPACE}::help
+        set help_proc ::${::tsp::PACKAGE_NAMESPACE}::help
     }
     
-    set help_body " puts {\n"
+    set help_body " puts {...\n"
     append help_body [::tsp::getProcIndex $packagename]
     append help_body "\n}\n"
     set help_procdef [list $help_proc "" $help_body]
     
-    lappend ::tsp::TCL_PROCS $help_procdef
+    if {[lsearch -index 0 $::tsp::TCL_PROCS $help_proc]==-1} {
+        lappend ::tsp::TCL_PROCS $help_procdef
+    }
     
-    set filename [file join $tsp::PACKAGE_DIR "$packagename.tclprocs.tcl"]
+    set filename [file join $::tsp::PACKAGE_DIR "$packagename.tclprocs.tcl"]
     set fd [open $filename w]
     puts $fd "#  TSP Pure TCL procs for loadlib failure management"
     puts $fd "#   package $packagename"
@@ -603,7 +641,7 @@ proc ::tsp::write_pkgAltTcl {packagename} {
     }
     close $fd
     
-    set filename [file join $tsp::PACKAGE_DIR "${packagename}.puretcl.tcl"]
+    set filename [file join $::tsp::PACKAGE_DIR "${packagename}.puretcl.tcl"]
     set fd [open $filename w]
     puts $fd "#  TSP Pure TCL procs for loadlib complemenary procs"
     puts $fd "#   package $packagename"
@@ -620,7 +658,7 @@ proc ::tsp::write_pkgAltTcl {packagename} {
         puts $fd "}"
     }
 
-    foreach procdef $tsp::TCL_PROCS {
+    foreach procdef $::tsp::TCL_PROCS {
         lassign $procdef procname procargs procbody
         if {$procname eq "${packagename}_pkgInit"} {
             set ::tsp::PACKAGE_INIT_PROC 1
@@ -678,20 +716,20 @@ proc ::tsp::compile_package {packagename {compiler tccwin32}} {
         return 1
     }
 
-    if {$tsp::COMPILE_DIRECTIVES eq ""} {
+    if {$::tsp::COMPILE_DIRECTIVES eq ""} {
         puts "ERROR: No compiler directives found"
         return -1
     }
-    if {$tsp::PACKAGE_DIR eq ""} {
+    if {$::tsp::PACKAGE_DIR eq ""} {
         puts "No packagedir given, searching in $packagename/$packagename.c"
-        set filename [file join $tsp::PACKAGE_DIR "$packagename.c"]
+        set filename [file join $::tsp::PACKAGE_DIR "$packagename.c"]
         if {![file exists $filename]} {
-            set tsp::PACKAGE_DIR $packagename
+            set ::tsp::PACKAGE_DIR $packagename
         }
     }
 
-    set filename [file join $tsp::PACKAGE_DIR "$packagename.c"]
-    set dllname [file join $tsp::PACKAGE_DIR "$packagename.dll"]
+    set filename [file join $::tsp::PACKAGE_DIR "$packagename.c"]
+    set dllname [file join $::tsp::PACKAGE_DIR "$packagename.dll"]
     if {![file exists $filename]} {
         puts "ERROR: $filename source not found"
         return -1
@@ -702,7 +740,7 @@ proc ::tsp::compile_package {packagename {compiler tccwin32}} {
         cd $::tccenv::tccexecutabledir
     }
     
-    set cdirect [dict get $tsp::COMPILE_DIRECTIVES $compiler]
+    set cdirect [dict get $::tsp::COMPILE_DIRECTIVES $compiler]
     
     puts "Compiling external $cdirect"
     set  ::errorCode ""

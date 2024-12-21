@@ -297,7 +297,7 @@ proc ::tcc4tcl::prepare_compilerdirectives {filepath handle} {
     
     set ccoptionstccwin32 "-m32 -D_WIN32 "
     set ccoptionsgccwin32 "-s -m32 -D_WIN32 -static-libgcc "
-    set ccoptionstcclin64 {-Wl,-rpath='.'}
+    set ccoptionstcclin64 {-Wl,-rpath=.}
     set ccoptionsgcclin64 {-s -fPIC -D_GNU_SOURCE -Wl,-rpath=. }
     
     set ccoptionstccuser ""
@@ -375,6 +375,42 @@ proc ::tcc4tcl::prepare_compilerdirectives {filepath handle} {
     return $ccdirectives
 }
 
+proc lstride {L n} {
+   set t [list]; set res [list]
+   foreach i $L {
+      lappend t $i
+      if {[llength $t]==$n} {
+         lappend res $t
+         set t [list]
+      }
+   }
+   if [llength $t] {lappend res $t} ;# maybe keep the rest
+   set res
+}
+
+proc ::tcc4tcl::dlexport_procdefs {procdefs proclist} {
+    #
+    ### experimental insert###
+    #
+    ##########################
+    #
+    set exportcode ""
+    foreach {procname cname_obj} $procdefs {
+        # [list $tclname $rtype $adefs]
+        lassign $cname_obj cname rtype adefs
+        if {[string range $procname 0 1]!="__"} {;#rmoeve special procs
+            #
+            set adefs [lstride $adefs 2]
+            set adefs [join $adefs ,]
+            set dlcode "DLLEXPORT $rtype $cname ($adefs);\n"
+            puts "$procname -> obj $cname_obj cname $cname rtype $rtype adefs $adefs"
+            puts $dlcode
+            append exportcode $dlcode
+        }
+    }
+    return $exportcode
+}
+
 proc ::tcc4tcl::write_packagecode {handle packagename {filepath ""} {packageversion 1.0} {tclversion TCL_VERSION}} {
     proc relTo {targetfile currentpath } {
         # Get relative path to target file from current path
@@ -422,7 +458,7 @@ proc ::tcc4tcl::write_packagecode {handle packagename {filepath ""} {packagevers
             default {\n}
         }
     }
-
+    
     set DLEXPORTMAKRO $::tccenv::DLEXPORTMAKRO
     upvar #0 $handle state
     set oldtype "package"
@@ -432,14 +468,18 @@ proc ::tcc4tcl::write_packagecode {handle packagename {filepath ""} {packagevers
         set state(type) "package"
     }
     
+    set compiletime [clock format [clock seconds]]
+
     #modify code with dlexportmakro
     set oldcode $state(code)
     set newcode $DLEXPORTMAKRO
     append newcode $oldcode
+    #append newcode [::tcc4tcl::dlexport_procdefs $state(procdefs) ""]
     set state(code) $newcode
     
     puts "Writing Package $packagename --> $filepath"
     set mycode [$handle code]
+    
     # beautify code
     set mycode [::tcc4tcl::reformat [string map [list [eol] \n] $mycode] 4]
     set $state(type) $oldtype
@@ -447,13 +487,13 @@ proc ::tcc4tcl::write_packagecode {handle packagename {filepath ""} {packagevers
     set filename [file join $filepath "$packagename.c"]
     set ccdirectives [::tcc4tcl::prepare_compilerdirectives $filename $::tsp::TCC_HANDLE]
     set fp [open $filename w]
-    puts $fp "/***************** Automatically Created with TCC4TCL Helper and maybe TSP **********************************/"
+    puts $fp "/***************** $compiletime Automatically Created with TCC4TCL Helper and maybe TSP **********************************/"
     puts $fp "/* Compiler directives are raw estimates, please adapt to given pathstructure */\n"
     foreach {compiler ccdirective} $ccdirectives {
         puts $fp "/* for $compiler use */"
         puts $fp "/* $ccdirective */\n"
     }
-    puts $fp "/***************** Automatically Created with TCC4TCL Helper and maybe TSP **********************************/"
+    puts $fp "/***************** $compiletime Automatically Created with TCC4TCL Helper and maybe TSP **********************************/"
     puts $fp $mycode
     close $fp
     return $ccdirectives

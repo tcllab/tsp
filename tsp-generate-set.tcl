@@ -142,6 +142,7 @@ proc ::tsp::produce_set {compUnitDict tree targetComponents sourceComponents} {
             # variable parsed as an array, but some other type
             set errors 1
             ::tsp::addError compUnit "set arg 1 \"$targetVarName\" previously defined as type: \"$targetType\", now referenced as array"
+            #puts "set arg 1 \"$targetVarName\" previously defined as type: \"$targetType\", now referenced as array"
         }
 
         # is index a string or variable?
@@ -637,10 +638,28 @@ proc ::tsp::gen_assign_var_string_interpolated_string {compUnitDict targetVarNam
     # puts "gen_assign_var_string_interpolated_string- ::tsp::setDirty compUnit $targetVarName"
     ::tsp::setDirty compUnit $targetVarName 
     
-    set targetPre [::tsp::var_prefix $targetVarName]
-
-    append result "\n/***** ::tsp::gen_assign_var_string_interpolated_string */\n"
+    set recursiveSet ""
+    set oldTarget $targetVarName
     
+    foreach component $sourceComponents {
+        # preanalyse, if recursive set occurs
+        set compType [lindex $component 0]
+        set sourceVarName [lindex $component 1]
+        if {$sourceVarName==$targetVarName} {
+            if {$compType=="scalar"} {
+                append code "// DEBUG: recursive set $sourceVarName \n"
+                set recursiveSet [::tsp::get_tmpvar compUnit string]
+                set targetVarName $recursiveSet
+                append code [::tsp::lang_assign_empty_zero $recursiveSet string]
+            } else {
+                ::tsp::addError compUnit "recursive assignment to \"$targetVarName\""
+                return ERROR
+            }
+        }            
+    }
+
+    set targetPre [::tsp::var_prefix $targetVarName]
+    append result "\n/***** ::tsp::gen_assign_var_string_interpolated_string */\n"
     
     set tmp [::tsp::get_tmpvar compUnit string]
     set tmp2 ""
@@ -668,6 +687,10 @@ proc ::tsp::gen_assign_var_string_interpolated_string {compUnitDict targetVarNam
             scalar {
                 # assignment from native variable or var, possible type coersion
                 set sourceVarName [lindex $component 1]
+                if {$sourceVarName==$targetVarName} {
+                    # create another tempvar
+                    append code "// DEBUG: sourceVarName=targetVarName=$targetVarName \n"
+                }
                 set sourceType [::tsp::getVarType compUnit $sourceVarName]
                 if {$sourceType eq "undefined"} {
                     ::tsp::addError compUnit "set command arg 2 interpolated string variable not defined: \"$sourceVarName\""
@@ -692,17 +715,16 @@ proc ::tsp::gen_assign_var_string_interpolated_string {compUnitDict targetVarNam
                 append code [::tsp::gen_assign_scalar_scalar compUnit $tmp string $sourceRhsVar $sourceType ]
             }
             text_array_idxvar - array_idxvar {
-                puts "//Parsing Array $compType in $component of $sourceComponents\n"
                  append code "//Parsing Array $compType in $component of $sourceComponents\n"
                  #::tsp::addWarning compUnit "$compType not implemented $component $sourceComponents"
-                 #append code "// Parsing $component in $sourceComponents\n"
+                 #append code "//Parsing $component in $sourceComponents\n"
 				set tmp_s [::tsp::get_tmpvar compUnit string]
 				set doreturn 0
 
                 # assignment from native variable or var, possible type coersion
                 set sourceVarName [lindex $component 2]
-                #append code "// assignment  |$sourceVarName| to $tmp_s\n"
                 set sourceType [::tsp::getVarType compUnit $sourceVarName]
+                #append code "// assignment  |$sourceVarName|$sourceType| to $tmp_s\n"
                 if {$sourceType eq "undefined"} {
                     ::tsp::addError compUnit "set command arg 2 interpolated string variable not defined: \"$sourceVarName\""
                     return [list ""]
@@ -716,6 +738,7 @@ proc ::tsp::gen_assign_var_string_interpolated_string {compUnitDict targetVarNam
 					append code [::tsp::lang_assign_var_string $tmp_v $tmp_s]
 					#append code "// Convert array |$tmp_a| to $tmp\n"
                     append code [::tsp::lang_assign_var_array_idxvar $tmp_a [::tsp::get_constvar [::tsp::getConstant compUnit [lindex $component 1]]] $tmp_v "Error loading Array Text"]
+                    append code "//DEBUG1: lang_convert_string_var after array \n"
 					append code [::tsp::lang_convert_string_var $tmp $tmp_a]
 				} else {
 				    set sourceText [lindex $sourceComponents 3]
@@ -733,11 +756,11 @@ proc ::tsp::gen_assign_var_string_interpolated_string {compUnitDict targetVarNam
                     }
 				}
 				if {$targetType eq "string"} {
-					#append code "// Append string 727 |$tmp|\n"
-					append code [::tsp::lang_append_string $targetPre$targetVarName $tmp]
+					append code "// Append string 727 dropped |$tmp|\n"
+					#append code [::tsp::lang_append_string $targetPre$targetVarName $tmp]
 				} elseif {$targetType eq "var"} {
-					#append code "// Append var |$tmp|\n"
-					append code [::tsp::lang_assign_var_string $targetVarName $tmp]
+					append code "// Append var 740 dropped |$tmp|\n"
+					#append code [::tsp::lang_assign_var_string $targetVarName $tmp]
 				}
 				#append code [::tsp::lang_assign_empty_zero $tmp string]
 				if {$doreturn>0} {
@@ -746,8 +769,15 @@ proc ::tsp::gen_assign_var_string_interpolated_string {compUnitDict targetVarNam
 				}
             }
             text_array_idxtext - array_idxtext {
-                 append code "//Parsing Array $compType in $component of $sourceComponents\n"
+                append code "//Parsing Array $compType in $component of $sourceComponents\n"
 				set tmp_s [::tsp::get_tmpvar compUnit string]
+                set sourceVarName [lindex $component 1]
+                set sourceType [::tsp::getVarType compUnit $sourceVarName]
+                #append code "// assignment  |$sourceVarName|$sourceType| to $tmp_s\n"
+                if {($sourceVarName ne "") && ($sourceType ne "array")} {
+                    ::tsp::addError compUnit "set command argument not defined as array but as $sourceType: \"$sourceVarName\""
+                    return [list ""]
+                }
 				set doreturn 0
 				if {($compType=="array_idxtext")} {
 					#::tsp::addWarning compUnit "set arg 2 interpolated string cannot contain $compType as $component in $sourceComponents, only commands, text, backslash, or scalar variables"
@@ -767,16 +797,16 @@ proc ::tsp::gen_assign_var_string_interpolated_string {compUnitDict targetVarNam
                         set doreturn 1
                     }
 				}
-				if {$targetType eq "string"} {
-					#append code "// Append string 763 |$tmp|\n"
-					##???append code [::tsp::lang_append_string $targetPre$targetVarName $tmp]
-					### deleted this output 23-Oct 20, since it produced continuosly double output with 
-					### Line 781 string case
-					#append code "// ok;\n"
-				} elseif {$targetType eq "var"} {
-					#append code "// Append var |$tmp|\n"
-					append code [::tsp::lang_assign_var_string $targetVarName $tmp]
-				}
+                if {$targetType eq "string"} {
+                    #append code "// Append string 763 |$tmp|\n"
+                    ##???append code [::tsp::lang_append_string $targetPre$targetVarName $tmp]
+                    ### deleted this output 23-Oct 20, since it produced continuosly double output with 
+                    ### Line 781 string case
+                    #append code "// ok;\n"
+                } elseif {$targetType eq "var"} {
+                    append code "// Append var 778 |$tmp|\n"
+                    append code [::tsp::lang_assign_var_string $targetVarName $tmp]
+                }
 				#append code [::tsp::lang_assign_empty_zero $tmp string]
 				if {$doreturn>0} {
 				    append code "// exiting\n"
@@ -794,6 +824,11 @@ proc ::tsp::gen_assign_var_string_interpolated_string {compUnitDict targetVarNam
         } elseif {$targetType eq "var"} {
             append code [::tsp::lang_append_string $tmp2 $tmp]
         }
+    }
+    if {$recursiveSet!=""} {
+        append code "// DEBUG: had recursive set\n"
+        append code [::tsp::lang_convert_string_string [::tsp::var_prefix $oldTarget]$oldTarget $targetPre$targetVarName]
+        set targetVarName $oldTarget
     }
     if {$targetType eq "var"} {
         append code [::tsp::gen_assign_scalar_scalar compUnit $targetVarName var $tmp2 string]

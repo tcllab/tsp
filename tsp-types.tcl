@@ -174,9 +174,9 @@ proc ::tsp::parse_procDefs {compUnitDict def} {
     set validReturnTypes $::tsp::RETURN_TYPES
     set validArgTypes $::tsp::VAR_TYPES
     
-    # patch for native proc withou pushcallframe/popcallframe
+    # patch for native proc without pushcallframe/popcallframe
     dict set compUnit isNative 1
-    set unsupportedTypes "array"
+    set unsupportedTypes [list "array"]
     
     set len [llength $def]
     if {$len < 2} {
@@ -189,12 +189,14 @@ proc ::tsp::parse_procDefs {compUnitDict def} {
     }
     set found [lsearch $validReturnTypes $type]
     if {$found < 0} {
-        ::tsp::addError compUnit "::tsp::procdef: invalid return type: $type"
+        ::tsp::addError compUnit "::tsp::procdef: invalid return type: $type $def"
+        dict set compUnit returns $type
         return
     }
     set unsupported [lsearch $unsupportedTypes $type]
     if {$unsupported>-1} {
-        ::tsp::addWarning compUnit "::tsp::procdef: not a native type $type"
+        ::tsp::addError compUnit "::tsp::procdef: invalid return type: $type $def"
+        dict set compUnit returns $type
         dict set compUnit isNative 0
         return
     }
@@ -246,9 +248,9 @@ proc ::tsp::parse_procDefs {compUnitDict def} {
             set type [lindex $defArgs $i]
             set unsupported [lsearch $unsupportedTypes $type]
             if {$unsupported>-1} {
-                ::tsp::addWarning compUnit "::tsp::procdef: not a native type $type"
+                ::tsp::addError compUnit "::tsp::procdef: invalid argument type $type $def"
                 dict set compUnit isNative 0
-                return
+                #return
             }
             set found [lsearch $validArgTypes $type]
             if {$found < 0} {
@@ -293,10 +295,11 @@ proc ::tsp::parse_varDefs {compUnitDict def} {
         return
     }
     set unsupported [lsearch "array" $type]
+    #set unsupported -1
     if {$unsupported>-1} {
-        ::tsp::addWarning compUnit "::tsp::procdef: not a native type $type"
+        #::tsp::addWarning compUnit "::tsp::procdef: not a native type $type $def"
         dict set compUnit isNative 0
-        return
+        #return
     }
 
     set var_list [lrange $def 1 end]
