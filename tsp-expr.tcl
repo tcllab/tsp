@@ -443,6 +443,7 @@ proc ::tsp::produce_func {compUnitDict op expr tree} {
     } elseif {[llength $tree] == 1 && [lsearch -exact $::tsp::FUNC_1ARG $op] >= 0} {
         lassign [::tsp::produce_subexpr compUnit $expr [lindex $tree 0]] firstType firstOperand
         if {[string match string* $firstType]} {
+            #::tsp::lang_convert_int_string {targetVarName $firstType errMsg}
             error "arg type cannot be string for function: $op"
         }
         if {[::tsp::typeIsBoolean $firstType]} {

@@ -89,7 +89,7 @@ proc ::tsp::compile_proc {file name procargs body} {
     set rc [ catch {set compileResult [::tsp::parse_body compUnit {0 end}] } errInf] 
     if {$rc != 0} {
         catch {puts [join [dict get $compUnit errors] \n]}
-        error "tsp internal error: parse_body error: $errInf"
+        error "tsp internal error parsing $name: parse_body error: $errInf"
     }
 
     set returnType [dict get $compUnit returns]
@@ -112,7 +112,7 @@ proc ::tsp::compile_proc {file name procargs body} {
     set rc [ catch {set compileResult [::tsp::parse_body compUnit {0 end}] } errInf] 
     if {$rc != 0} {
         catch {puts [join [dict get $compUnit errors] \n]}
-        error "tsp internal error: parse_body error: $errInf"
+        error "tsp internal error w parsing $name: parse_body error: $errInf"
     }
     
     lassign $compileResult bodyType bodyRhs code

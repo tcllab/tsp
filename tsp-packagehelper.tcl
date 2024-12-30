@@ -16,20 +16,22 @@
 package require tcc4tcl
 source [file join [file dirname [info script]] tcc4tcl_helper.tcl]
 
-
 namespace eval ::tsp {
-    # added for code package making MiR
+    # added for code package making MiR, also defined and used in tsp.tcl
     variable COMPILE_PACKAGE 0
     variable PACKAGE_NAMESPACE ""
-    variable NAMESPACE_VARS ""
     variable PACKAGE_HEADER ""
-    variable TCC_HANDLE 
     variable PACKAGE_PROCS ""
+    variable NAMESPACE_VARS ""
+    variable TCC_HANDLE 
 
+    variable TSP_VERSION "-unknown-"
+    
+    # these variables are NOT to be used elsewhere in tsp
     variable PACKAGE_NAME ""
     variable PACKAGE_VERSION "1.0"
     variable PACKAGE_DIR ""
-    variable TSPPACKAGE_SPACE [file normalize [file dirname [info script]]]
+    #variable TSPPACKAGE_SPACE [file normalize [file dirname [info script]]]
     variable TCL_VERSION "TCL_VERSION"
     variable TCL_PROCS ""
     # load tcls for additional sources
@@ -98,6 +100,12 @@ proc ::tsp::init_package {packagename {packagenamespace ""} {packageversion 1.0}
     set ::tsp::PACKAGE_NAMESPACE $packagenamespace
     set ::tsp::PACKAGE_VERSION $packageversion
     set ::tsp::TCL_VERSION $tclversion
+    
+    #which version of tsp did create the source? 
+    if {$::tsp::TSP_VERSION eq "-unknown-"} {
+        # try taking it from application
+        catch {set ::tsp::TSP_VERSION $::_version}
+    }
     # reset system in case
     set ::tsp::COMPILER_LOG [dict create]
     set ::tsp::COMPILED_PROCS [dict create]
@@ -110,17 +118,16 @@ proc ::tsp::init_package {packagename {packagenamespace ""} {packageversion 1.0}
     set ::tsp::NAMESPACE_VARS ""
     set ::tsp::PACKAGE_INIT_PROC 0
     set ::tsp::TCL_PROCS ""
-    set ::tsp::PACKAGE_HEADER \
-        {
-/* START OF PACKAGE_HEADER */
+    set ::tsp::PACKAGE_HEADER "
+/* START OF PACKAGE_HEADER TSP (Version $::tsp::TSP_VERSION) */
 /* don't forget to declare includedir tsp-package/native/clang/ in the right way */
 #include <string.h>
 #include <tclInt.h>
-#include "TSP_cmd.c"
-#include "TSP_func.c"
-#include "TSP_util.c"
+#include \"TSP_cmd.c\"
+#include \"TSP_func.c\"
+#include \"TSP_util.c\"
 /* END OF PACKAGE_HEADER */
-    }
+    "
     
     $::tsp::TCC_HANDLE add_include_path "$::tsp::HOME_DIR/native/clang/"
     $::tsp::TCC_HANDLE add_include_path $packagename
@@ -235,6 +242,7 @@ proc ::tsp::safeEval {cmd} {
         set r [namespace eval :: "$cmd"]
         puts "Result: $r"
     } err]} {
+        interp delete sl
         ::tsp::unhook_proc
         puts "Eval Error: $err"
     }
@@ -265,29 +273,31 @@ proc ::tsp::test_packageX {packagename {callcmd ""} {shell "tclkit_8.6.12.exe"}}
         puts "Creating new exec"
         set res_name [file normalize resrc.tcl]
         set fd [open $res_name w]
+        fconfigure $fd -translation lf
         puts $fd "#!/usr/bin/tclsh"
         puts $fd "catch {console show}"
-        puts "appending auto_path with [file normalize [file dir $::tsp::PACKAGE_DIR]]"
+        puts ">>> appending auto_path with [file normalize [file dir $::tsp::PACKAGE_DIR]]"
+        puts $fd "lappend auto_path ."
         puts $fd "lappend auto_path [file normalize [file dir $::tsp::PACKAGE_DIR]]"
-        puts "Testing for [file dir $::tsp::PACKAGE_DIR] ne $packagedir"
+        #puts "Testing for [file dir $::tsp::PACKAGE_DIR] ne $packagedir"
         if {[file dir $::tsp::PACKAGE_DIR] ne $packagedir} {
-            puts "appending auto_path with $packagedir"
+            puts ">>> appending auto_path with $packagedir"
             puts $fd "lappend auto_path $packagedir"
         }
-        puts "Appending $::tsp::TSPPACKAGE_SPACE"
-        puts $fd "lappend auto_path $::tsp::TSPPACKAGE_SPACE"
-        puts "Loading package... $packagename"
+        #puts "Appending $::tsp::TSPPACKAGE_SPACE"
+        #puts $fd "lappend auto_path $::tsp::TSPPACKAGE_SPACE"
+        puts ">>> Load package... $packagename"
         puts $fd "package require $packagename"
         
         if {$callcmd ne ""} {
-            puts "Calling $callcmd"
+            puts ">>> Call $callcmd"
             puts $fd $callcmd
         }
     } err]} {
         puts "Error while preparing package $packagename\n$err"
     }
     close $fd
-    puts "Go"
+    puts ">>> Go"
     
     # shell actually hardcoded... todo implement some clever routine to find nearest kit
     # and to run under linux

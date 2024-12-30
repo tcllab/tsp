@@ -485,7 +485,7 @@ proc ::tcc4tcl::write_packagecode {handle packagename {filepath ""} {packagevers
     set $state(type) $oldtype
     
     set filename [file join $filepath "$packagename.c"]
-    set ccdirectives [::tcc4tcl::prepare_compilerdirectives $filename $::tsp::TCC_HANDLE]
+    set ccdirectives [::tcc4tcl::prepare_compilerdirectives $filename $handle]
     set fp [open $filename w]
     puts $fp "/***************** $compiletime Automatically Created with TCC4TCL Helper and maybe TSP **********************************/"
     puts $fp "/* Compiler directives are raw estimates, please adapt to given pathstructure */\n"

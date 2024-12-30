@@ -266,7 +266,8 @@ proc ::tsp::lang_convert_int_string {targetVarName sourceVarName errMsg} {
         append result "if ((*rc = TSP_Util_lang_convert_int_string(interp, $sourceVarName, &$targetVarName)) != TCL_OK) \{\n"
     }
 #FIXME: see Tcl_GetInt()   but convert use Tcl_GetWideIntFromObj instead.
-    append result "    Tcl_AppendResult(interp, [::tsp::lang_quote_string $errMsg], Tcl_GetString($sourceVarName), (char *) NULL);\n"
+#    append result "    Tcl_AppendResult(interp, [::tsp::lang_quote_string $errMsg], Tcl_GetString($sourceVarName), (char *) NULL);\n"
+    append result "    Tcl_AppendResult(interp, [::tsp::lang_quote_string $errMsg], $sourceVarName, (char *) NULL);\n"
     append result "    ERROR_EXIT;\n"
     append result "\}\n"
     return $result
