@@ -26,6 +26,8 @@ namespace eval ::tccenv {
     variable projectincludedir  ${projectdir}/include
     variable projectlibdir      ${projectdir}/lib
     
+    variable compiletime ""
+    
     variable includes_missing ""
     
     variable EXTERNAL_COMPILERS ""
@@ -411,6 +413,19 @@ proc ::tcc4tcl::dlexport_procdefs {procdefs proclist} {
     return $exportcode
 }
 
+proc ::tcc4tcl::prepare_packagecode {handle} {
+    #
+    set DLEXPORTMAKRO $::tccenv::DLEXPORTMAKRO
+    upvar #0 $handle state
+    #modify code with dlexportmakro
+    set oldcode $state(code)
+    set newcode $DLEXPORTMAKRO
+    append newcode $oldcode
+    #append newcode [::tcc4tcl::dlexport_procdefs $state(procdefs) ""]
+    set state(code) $newcode
+    
+}
+
 proc ::tcc4tcl::write_packagecode {handle packagename {filepath ""} {packageversion 1.0} {tclversion TCL_VERSION}} {
     proc relTo {targetfile currentpath } {
         # Get relative path to target file from current path
@@ -459,7 +474,6 @@ proc ::tcc4tcl::write_packagecode {handle packagename {filepath ""} {packagevers
         }
     }
     
-    set DLEXPORTMAKRO $::tccenv::DLEXPORTMAKRO
     upvar #0 $handle state
     set oldtype "package"
     if {$state(type)!="package"} {
@@ -468,15 +482,8 @@ proc ::tcc4tcl::write_packagecode {handle packagename {filepath ""} {packagevers
         set state(type) "package"
     }
     
-    set compiletime [clock format [clock seconds]]
-
-    #modify code with dlexportmakro
-    set oldcode $state(code)
-    set newcode $DLEXPORTMAKRO
-    append newcode $oldcode
-    #append newcode [::tcc4tcl::dlexport_procdefs $state(procdefs) ""]
-    set state(code) $newcode
-    
+    set ::tccenv::compiletime [clock format [clock seconds]]
+#
     puts "Writing Package $packagename --> $filepath"
     set mycode [$handle code]
     
@@ -487,13 +494,13 @@ proc ::tcc4tcl::write_packagecode {handle packagename {filepath ""} {packagevers
     set filename [file join $filepath "$packagename.c"]
     set ccdirectives [::tcc4tcl::prepare_compilerdirectives $filename $handle]
     set fp [open $filename w]
-    puts $fp "/***************** $compiletime Automatically Created with TCC4TCL Helper and maybe TSP **********************************/"
+    puts $fp "/***************** $::tccenv::compiletime Automatically Created with TCC4TCL Helper and maybe TSP **********************************/"
     puts $fp "/* Compiler directives are raw estimates, please adapt to given pathstructure */\n"
     foreach {compiler ccdirective} $ccdirectives {
         puts $fp "/* for $compiler use */"
         puts $fp "/* $ccdirective */\n"
     }
-    puts $fp "/***************** $compiletime Automatically Created with TCC4TCL Helper and maybe TSP **********************************/"
+    puts $fp "/***************** $::tccenv::compiletime Automatically Created with TCC4TCL Helper and maybe TSP **********************************/"
     puts $fp $mycode
     close $fp
     return $ccdirectives

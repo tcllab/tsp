@@ -31,6 +31,8 @@ namespace eval ::tsp {
     variable PACKAGE_NAME ""
     variable PACKAGE_VERSION "1.0"
     variable PACKAGE_DIR ""
+    variable writepkg 1 ;# controls if any code is written out
+    variable TEST_PROC ""
     #variable TSPPACKAGE_SPACE [file normalize [file dirname [info script]]]
     variable TCL_VERSION "TCL_VERSION"
     variable TCL_PROCS ""
@@ -162,6 +164,7 @@ proc ::tsp::finalize_package {{packagedir ""} {compiler none}} {
     }
     
     ::tsp::rewrite_procnamespace
+    ::tcc4tcl::prepare_packagecode $::tsp::TCC_HANDLE
     
     if {$compiler eq ""} {
         set compiler "intern"
@@ -189,10 +192,11 @@ proc ::tsp::finalize_package {{packagedir ""} {compiler none}} {
     set cmd "::$help_proc {} $help_body"
     ::proc ::$help_proc {} $help_body
     lappend ::tsp::TCL_PROCS $help_procdef
-    
-    ::tsp::write_pkgAltTcl $::tsp::PACKAGE_NAME
-    ::tsp::write_pkgIndex $::tsp::PACKAGE_NAME
-    
+    if {$::tsp::writepkg>0} {
+        puts "writing pkg $::tsp::PACKAGE_NAME from -$::tsp::ACTSOURCE-"
+        ::tsp::write_pkgAltTcl $::tsp::PACKAGE_NAME
+        ::tsp::write_pkgIndex $::tsp::PACKAGE_NAME
+    }
     # if a source file is given
     # copy source to packagedir... if already in place, rename
     if {($::tsp::ACTSOURCE ne "")&&[file exist $::tsp::ACTSOURCE]} {
@@ -206,7 +210,7 @@ proc ::tsp::finalize_package {{packagedir ""} {compiler none}} {
             set vdiff [version:filediff $::tsp::ACTSOURCE $lastsrcname]
         }
         if {$vdiff >0} {
-            puts "Copy src to $srcname"
+            puts "Copy src $::tsp::ACTSOURCE to $srcname"
             file copy "$::tsp::ACTSOURCE" "$srcname"
         }
     }
@@ -217,7 +221,7 @@ proc ::tsp::finalize_package {{packagedir ""} {compiler none}} {
     if {$::tsp::PACKAGE_INIT_PROC>0} {
         if {$compiler in "intern memory"} {
             if {[catch {${::tsp::PACKAGE_NAME}_pkgInit} e]} {
-                puts "error: $e"
+                puts "error ${::tsp::PACKAGE_NAME}_pkgInit: $e"
             }
         }
     }
@@ -490,7 +494,12 @@ proc ::tsp::getProcIndex {packagename} {
             lassign $procdef cproc cvars cbody
             lappend helpindex "# ${::tsp::PACKAGE_NAMESPACE}::$cproc $cvars"
         }
+        if {$procname eq "${packagename}_pkgInit"} {
+            set ::tsp::PACKAGE_INIT_PROC 1
+            puts "Init via $procname"
+        }
     }
+
     lappend helpindex ""
     lappend helpindex "# TCL Procs "
     lappend helpindex ""
@@ -499,6 +508,10 @@ proc ::tsp::getProcIndex {packagename} {
     foreach tcldef $tclpr {
         lassign $tcldef cproc cvars cbody
         lappend helpindex [string map {\n "."} "# $cproc $cvars"]
+        if {$cproc eq "${packagename}_pkgInit"} {
+            set ::tsp::PACKAGE_INIT_PROC 1
+            puts "Init via $cproc"
+        }
     }
     return [join $helpindex \n]
 }
@@ -561,7 +574,7 @@ proc ::tsp::write_pkgIndex {packagename} {
         append pkgloadlib "     ${packagename}_loadext \$dir\n"
     }
     if {$::tsp::PACKAGE_PROCS ne ""} {
-        append pkgloadlib "     if {\[catch {load \[file join \$dir \$packagename\[info sharedlibextension\]\]} err\]} {\n"
+        append pkgloadlib "     if {\[catch {load \[file join \$dir \$packagename\[info sharedlibextension\]\] \$packagename} err\]} {\n"
         append pkgloadlib "         source  \[file join \$dir \${packagename}.tclprocs.tcl\]\n"
         append pkgloadlib "     }\n"
     }
@@ -641,6 +654,7 @@ proc ::tsp::write_pkgAltTcl {packagename} {
         lassign $procdef procname procargs procbody
         if {$procname eq "${packagename}_pkgInit"} {
             set ::tsp::PACKAGE_INIT_PROC 1
+            puts "Init via $procname"
         }
         if {$::tsp::PACKAGE_NAMESPACE ne ""} {
             set procname "::${::tsp::PACKAGE_NAMESPACE}::$procname"
@@ -672,6 +686,7 @@ proc ::tsp::write_pkgAltTcl {packagename} {
         lassign $procdef procname procargs procbody
         if {$procname eq "${packagename}_pkgInit"} {
             set ::tsp::PACKAGE_INIT_PROC 1
+            puts "Init via $procname"
         }
         puts $fd "proc ${procname} {$procargs} {$procbody}\n"
     }
@@ -762,7 +777,7 @@ proc ::tsp::compile_package {packagename {compiler tccwin32}} {
     if {[llength $::errorCode]>1} {
         puts "Compiling seems to have errors, execution halted"
         puts "errorCode $::errorCode"
-        return -code error
+        return -code error $err
     }
     return 1
 }
@@ -870,8 +885,10 @@ proc version:filediff {file1 file2 {cmdEqual {version:cmdEqual}} {cmdAdd {versio
 proc version:cmdEqual {txt line} {
 }
 proc version:cmdAdd {txt line} {
+    if {[string trim $txt]!=""} {
         append ::actdiff "$line: +$txt\n";update
         incr ::afilediffs
+    }
 }
 proc version:cmdDel {txt line} {
     if {[string trim $txt]!=""} {
@@ -879,6 +896,10 @@ proc version:cmdDel {txt line} {
         incr ::afilediffs
     }
 }
-
+proc version:clear {} {
+    set ::lfilediffs ""
+    set ::tfilediffs ""
+    set ::cfilediffs 0
+}
 #----------------------------------- Code to remove -----------------------------------------
 
