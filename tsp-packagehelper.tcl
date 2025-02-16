@@ -99,7 +99,7 @@ proc ::tsp::init_package {packagename {packagenamespace ""} {packageversion 1.0}
     }
     set ::tsp::COMPILE_PACKAGE 1
     set ::tsp::PACKAGE_NAME $packagename
-    set ::tsp::PACKAGE_NAMESPACE $packagenamespace
+    set ::tsp::PACKAGE_NAMESPACE [string trim $packagenamespace :]; # remove prepending/trailing :: 
     set ::tsp::PACKAGE_VERSION $packageversion
     set ::tsp::TCL_VERSION $tclversion
     
@@ -229,6 +229,31 @@ proc ::tsp::finalize_package {{packagedir ""} {compiler none}} {
     set ::tsp::PACKAGE_NAME ""
         
 }
+
+proc ::tsp::tclwrap {name {adefs {}} {rtype void} {cname ""}} {
+    # this is a trampoline for tcc4tcls tclwrap routine adding the namespace
+    if {[namespace exists ::${::tsp::PACKAGE_NAMESPACE}]>0} {
+        # prepend package_namespace to name
+        # first clean up the nampespace_identifeier
+        set vname "::${::tsp::PACKAGE_NAMESPACE}::${name}"
+        if {[info command $vname]==$vname} {
+            set name $vname
+        }
+    }
+    $::tsp::TCC_HANDLE tclwrap $name $adefs $rtype $cname
+}
+proc ::tsp::tclwrap_eval {name {adefs {}} {rtype void} {cname ""}} {
+    # this is a trampoline for tcc4tcls tclwrap routine adding the namespace
+    if {[namespace exists ::${::tsp::PACKAGE_NAMESPACE}]>0} {
+        # prepend package_namespace to name
+        set vname "::${::tsp::PACKAGE_NAMESPACE}::${name}"
+        if {[info command $vname]==$vname} {
+            set name $vname
+        }
+    }
+    $::tsp::TCC_HANDLE tclwrap_eval $name $adefs $rtype $cname
+}
+
 
 proc ::tsp::addExternalCompiler {compiler ccOptions exeDir exeFile {compilertype gccwin32}} {
     # add external compiler to list EXTERNAL_COMPILERS
@@ -567,10 +592,10 @@ proc ::tsp::write_pkgIndex {packagename} {
     }
     
     set pkgloadlib  "proc ${packagename}_loadlib {dir packagename} {\n"
-    if {($loadextlibs ne "")} {
+    if {($loadextlibs ne "")||($::tsp::LOAD_DLLS ne "")} {
         append pkgloadlib "     ${packagename}_loadextdlls \$dir\n"
     }
-    if {($loadextlibs ne "")||($::tsp::LOAD_DLLS ne "")} {
+    if {($loadextlibs ne "")||($::tsp::LOAD_TCLS ne "")} {
         append pkgloadlib "     ${packagename}_loadext \$dir\n"
     }
     if {$::tsp::PACKAGE_PROCS ne ""} {
